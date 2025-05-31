@@ -17,8 +17,41 @@ type lonLat = {
   lat: number;
 };
 
-function Popup() {
+interface weatherDataType {
+  name: string;
+  country: string;
+  lat: number;
+  lon: number;
+}
+const API_KEY_2 = "6ed1c13520bbdb255f5c2fb196794ea8";
+
+function Popup({ lon, lat }: { lon: number; lat: number }) {
   const [isVisible, setIsVisible] = useState(false);
+  const [weatherData, setWeatherData] = useState<weatherDataType | null>(null);
+  const [isFetching, setIsFetching] = useState(true);
+  console.log(isFetching);
+  console.log(weatherData);
+  console.log(lon, lat);
+  useEffect(() => {
+    async function fetchWeatherData(lon: number, lat: number) {
+      const response = await fetch(
+        `http://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=${1}&appid=${API_KEY_2}`
+      );
+      if (!response.ok) {
+        console.log("Failed to get name", response.statusText);
+        setIsFetching(false);
+      }
+      const data = await response.json();
+      if (data) {
+        setWeatherData(data[0]);
+        setIsFetching(false);
+        return;
+      }
+      setWeatherData(null);
+      setIsFetching(false);
+    }
+    fetchWeatherData(lon, lat);
+  }, [lon, lat]);
 
   useEffect(() => {
     setIsVisible(true);
@@ -34,103 +67,24 @@ function Popup() {
   return (
     <div
       onClick={(e) => onClick(e)}
-      className="relative transform -translate-y-[55%] p-20"
+      className={`w-70 relative transform -translate-y-[55%] transition-all duration-200 ${
+        isVisible ? "scale-100 " : "scale-0"
+      }`}
     >
       {/* Popup container */}
-      <div
-        className={`
-    relative w-80 p-6 bg-gradient-to-br from-blue-50 via-white to-blue-100
-    rounded-2xl shadow-2xl transform transition-all duration-500
-    ${isVisible ? "scale-100 opacity-100" : "scale-95 opacity-0"}
-    border border-blue-100/50 backdrop-blur-sm
-  `}
-      >
-        {/* Header with location and close button */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              📍 Tokyo, Japan
-            </h2>
-          </div>
-          <button className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100">
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
+      <div className=" bg-white/20 backdrop-blur-md rounded-lg border border-transparent">
+        {isFetching ? (
+          <div className="h-7 w-32  rounded animate-pulse mb-2"></div>
+        ) : (
+          <h2 className="text-xl font-semibold text-white mb-2">
+            {weatherData?.name ?? "Unknown location"}
+          </h2>
+        )}
 
-        {/* Current weather display */}
-        <div className="flex items-center gap-4 mb-6 p-4 bg-white/60 rounded-xl border border-white/40">
-          <div className="text-5xl animate-bounce">☀️</div>
-          <div className="flex-1">
-            <div className="text-sm text-gray-600 uppercase tracking-wide font-medium">
-              Currently
-            </div>
-            <div className="text-3xl font-bold text-gray-800 mb-1">26°C</div>
-            <div className="text-gray-700 font-medium">Sunny & Clear</div>
-            <div className="text-xs text-gray-500 mt-1">Feels like 28°C</div>
-          </div>
-        </div>
-
-        {/* Weather details */}
-        <div className="grid grid-cols-2 gap-3 mb-5">
-          <div className="bg-white/40 p-3 rounded-lg text-center border border-white/30">
-            <div className="text-sm text-gray-600 mb-1">Humidity</div>
-            <div className="font-bold text-gray-800">65%</div>
-          </div>
-          <div className="bg-white/40 p-3 rounded-lg text-center border border-white/30">
-            <div className="text-sm text-gray-600 mb-1">Wind</div>
-            <div className="font-bold text-gray-800">12 km/h</div>
-          </div>
-        </div>
-
-        {/* 3-day forecast */}
-        <div>
-          <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide flex items-center gap-2">
-            📅 3-Day Forecast
-          </h3>
-          <div className="space-y-2">
-            {[
-              {
-                day: "Saturday",
-                icon: "🌤",
-                temp: "24°",
-                desc: "Partly Cloudy",
-              },
-              { day: "Sunday", icon: "🌧", temp: "22°", desc: "Light Rain" },
-              { day: "Monday", icon: "⛅", temp: "23°", desc: "Overcast" },
-            ].map((item, index) => (
-              <div
-                key={item.day}
-                className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-white/30 hover:bg-white/70 transition-all duration-200 hover:shadow-md"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">{item.icon}</span>
-                  <div>
-                    <div className="font-medium text-gray-800">{item.day}</div>
-                    <div className="text-xs text-gray-600">{item.desc}</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-bold text-lg text-gray-800">
-                    {item.temp}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <p className=" text-sm text-white/90 p-10">
+          This uses Tailwind’s built-in opacity and backdrop-blur utilities to
+          create a frosted glass effect.
+        </p>
       </div>
 
       {/* Pointer/Arrow pointing down */}
@@ -139,8 +93,8 @@ function Popup() {
           isVisible ? "scale-100 opacity-100" : "scale-95 opacity-0"
         }`}
       >
-        <div className="w-0 h-0 border-l-[12px] border-r-[12px] border-t-[12px] border-l-transparent border-r-transparent border-t-blue-100"></div>
-        <div className="w-0 h-0 border-l-[10px] border-r-[10px] border-t-[10px] border-l-transparent border-r-transparent border-t-white absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-px"></div>
+        <div className="w-0 h-0 border-l-[12px] border-r-[12px] border-t-[12px] border-l-transparent border-r-transparent border-white/20"></div>
+        <div className="w-0 h-0 border-l-[10px] border-r-[10px] border-t-[10px] border-l-transparent border-r-transparent border-t-transparent absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-px"></div>
       </div>
     </div>
   );
@@ -150,8 +104,8 @@ export default function MainMap() {
   const map = useRef<maptilersdk.Map | null>(null);
   const tokyo = { lng: 139.753, lat: 35.6844 };
   const markerRef = useRef<maptilersdk.Marker | null>(null);
-  const zoom = 10;
   const popupRef = useRef<HTMLDivElement | null>(null);
+  const popupRootRef = useRef<ReturnType<typeof createRoot> | null>(null);
   maptilersdk.config.apiKey = "VeFBYMzeYDGVkF6SbzJK";
   const [lngLat, setLngLat] = useState<lonLat>({
     lng: tokyo.lng,
@@ -165,10 +119,10 @@ export default function MainMap() {
     map.current = new maptilersdk.Map({
       container: mapContainer.current,
       style: maptilersdk.MapStyle.SATELLITE,
-      center: [tokyo.lng, tokyo.lat],
-      zoom: zoom,
+      center: [114.19888124059656, -3.665522983335549],
+      zoom: 4,
+      navigationControl: false,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Initialize Marker
@@ -197,19 +151,22 @@ export default function MainMap() {
     map.current = new maptilersdk.Map({
       container: mapContainer.current,
       style: maptilersdk.MapStyle.SATELLITE,
-      center: [tokyo.lng, tokyo.lat],
-      zoom: zoom,
+      center: [103.11509301423916, 41.089223120782464],
+      zoom: 10,
+      navigationControl: false,
     });
 
     const placeHolderEl = document.createElement("div");
-    createRoot(placeHolderEl).render(<Popup />);
+    createRoot(placeHolderEl).render(
+      <Popup lon={lngLat.lng} lat={lngLat.lat} />
+    );
     // placeHolderEl.classList.add("w-10", "h-10", "bg-red-500");
     if (lngLat) {
       new maptilersdk.Marker({ element: placeHolderEl })
         .setLngLat([lngLat.lng, lngLat.lat])
         .addTo(map.current);
     }
-  }, [tokyo.lng, tokyo.lat, zoom, lngLat]);
+  }, [tokyo.lng, tokyo.lat, lngLat]);
 
   // Set the lat lng on click
   useEffect(() => {
@@ -217,27 +174,26 @@ export default function MainMap() {
 
     const handleClick = (event: ClickEvent) => {
       const { lat, lng } = event.lngLat;
-      if (popupRef.current) {
-        popupRef.current.remove();
-      }
       setLngLat({
         lat: lat,
         lng: lng,
       });
 
-      const popupEl = document.createElement("div");
-      createRoot(popupEl).render(<Popup />);
-      popupRef.current = popupEl;
-      console.log(lat, lng);
+      if (popupRootRef.current && popupRef.current) {
+        popupRootRef.current.unmount();
+        popupRef.current.remove();
+      }
 
-      // const location = toLonLat(coordinates);
-      // const roundedLocation = [
-      //   parseFloat(location[0].toFixed(2)),
-      //   parseFloat(location[1].toFixed(2)),
-      // ];
-      // fetchData(roundedLocation);
-      // addMarker(coordinates);
-      // Cleanup listener on unmount
+      const popupEl = document.createElement("div");
+      const popupRoot = createRoot(popupEl);
+      popupRoot.render(<Popup lon={lng} lat={lat} />);
+
+      popupRef.current = popupEl;
+      popupRootRef.current = popupRoot;
+
+      new maptilersdk.Marker({ element: popupEl })
+        .setLngLat([lng, lat])
+        .addTo(map.current!);
     };
 
     map.current.on("click", handleClick);
@@ -249,7 +205,7 @@ export default function MainMap() {
 
   return (
     <div className="relative w-screen h-screen">
-      <div ref={mapContainer} className="absolute w-[100%] h-[100%]" />
+      <div ref={mapContainer} className="  absolute w-[100%] h-[100%]" />
     </div>
   );
 }
