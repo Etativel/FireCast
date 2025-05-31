@@ -24,16 +24,33 @@ interface weatherDataType {
   lon: number;
 }
 const API_KEY_2 = "6ed1c13520bbdb255f5c2fb196794ea8";
+const API_KEY = "YPC3DM45JTFTRKZF8EXVGKAZY";
 
 function Popup({ lon, lat }: { lon: number; lat: number }) {
   const [isVisible, setIsVisible] = useState(false);
   const [weatherData, setWeatherData] = useState<weatherDataType | null>(null);
   const [isFetching, setIsFetching] = useState(true);
-  console.log(isFetching);
-  console.log(weatherData);
-  console.log(lon, lat);
+
   useEffect(() => {
     async function fetchWeatherData(lon: number, lat: number) {
+      if (!lon || !lat) return;
+      console.log("this lon", lon);
+      console.log("this lat", lat);
+      try {
+        const response = await fetch(
+          `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${lon},${lat}?key=${API_KEY}&unitGroup=metric&include=current`
+        );
+        if (!response.ok) {
+          console.log(response.statusText);
+        }
+        const data = await response.json();
+        console.log("this is weather", data);
+      } catch (err) {
+        console.log(err);
+      }
+    }
+
+    async function fetchCityData(lon: number, lat: number) {
       const response = await fetch(
         `http://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=${1}&appid=${API_KEY_2}`
       );
@@ -50,7 +67,8 @@ function Popup({ lon, lat }: { lon: number; lat: number }) {
       setWeatherData(null);
       setIsFetching(false);
     }
-    fetchWeatherData(lon, lat);
+    fetchWeatherData(lat, lon);
+    fetchCityData(lon, lat);
   }, [lon, lat]);
 
   useEffect(() => {
