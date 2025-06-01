@@ -53,4 +53,23 @@ const icons: Record<WeatherIconKey, string> = {
   "partly-cloudy-night": partlycloudynight,
 };
 
+// const icons = {
+//   "clear-day": "☀️",
+//   "clear-night": "🌙",
+//   cloudy: "☁️",
+//   fog: "🌫️",
+//   wind: "💨",
+//   rain: "🌧️",
+//   snow: "❄️",
+//   "snow-showers-day": "🌨️",
+//   "snow-showers-night": "🌨️",
+//   "thunder-rain": "⛈️",
+//   "thunder-showers-day": "⛈️",
+//   "thunder-showers-night": "⛈️",
+//   "showers-day": "🌦️",
+//   "showers-night": "🌦️",
+//   "partly-cloudy-day": "🌤️",
+//   "partly-cloudy-night": "🌙",
+// };
+
 export default icons;
