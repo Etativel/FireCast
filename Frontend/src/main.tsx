@@ -16,6 +16,6 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <Suspense fallback="">
       <RouterProvider router={router} />
-    </Suspense>{" "}
+    </Suspense>
   </StrictMode>
 );
