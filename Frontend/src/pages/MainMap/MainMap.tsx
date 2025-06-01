@@ -4,6 +4,7 @@ import "@maptiler/sdk/dist/maptiler-sdk.css";
 import { createRoot } from "react-dom/client";
 import Popup from "../../components/Map/Popup";
 import "./map.css";
+import { useNavigate } from "react-router-dom";
 
 type ClickEvent = {
   lngLat: {
@@ -24,6 +25,7 @@ export default function MainMap() {
   const markerRef = useRef<maptilersdk.Marker | null>(null);
   const popupRef = useRef<HTMLDivElement | null>(null);
   const popupRootRef = useRef<ReturnType<typeof createRoot> | null>(null);
+  const navigate = useNavigate();
   maptilersdk.config.apiKey = "VeFBYMzeYDGVkF6SbzJK";
   const [lngLat, setLngLat] = useState<lonLat>({
     lng: tokyo.lng,
@@ -76,7 +78,7 @@ export default function MainMap() {
 
     const placeHolderEl = document.createElement("div");
     createRoot(placeHolderEl).render(
-      <Popup lon={lngLat.lng} lat={lngLat.lat} />
+      <Popup lon={lngLat.lng} lat={lngLat.lat} navigate={navigate} />
     );
     // placeHolderEl.classList.add("w-10", "h-10", "bg-red-500");
     if (lngLat) {
@@ -84,7 +86,7 @@ export default function MainMap() {
         .setLngLat([lngLat.lng, lngLat.lat])
         .addTo(map.current);
     }
-  }, [tokyo.lng, tokyo.lat, lngLat]);
+  }, [tokyo.lng, tokyo.lat, lngLat, navigate]);
 
   // Set the lat lng on click
   useEffect(() => {
@@ -104,7 +106,7 @@ export default function MainMap() {
 
       const popupEl = document.createElement("div");
       const popupRoot = createRoot(popupEl);
-      popupRoot.render(<Popup lon={lng} lat={lat} />);
+      popupRoot.render(<Popup lon={lng} lat={lat} navigate={navigate} />);
 
       popupRef.current = popupEl;
       popupRootRef.current = popupRoot;
@@ -119,7 +121,7 @@ export default function MainMap() {
     return () => {
       map.current?.off("click", handleClick);
     };
-  }, []);
+  }, [navigate]);
 
   return (
     <div className="w-full h-full border-transparent">
