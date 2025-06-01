@@ -2,7 +2,13 @@ import { useEffect, useState } from "react";
 import type { MouseEvent } from "react";
 import icons from "../../utility/attachIcon";
 import { Wind, Droplets, Gauge, Eye } from "lucide-react";
+import type { NavigateFunction } from "react-router-dom";
 
+interface PopupProps {
+  lon: number;
+  lat: number;
+  navigate: NavigateFunction;
+}
 interface weatherDataType {
   name: string;
   country: string;
@@ -27,7 +33,7 @@ type Weather = {
 const API_KEY_2 = "6ed1c13520bbdb255f5c2fb196794ea8";
 const API_KEY = "YPC3DM45JTFTRKZF8EXVGKAZY";
 
-export default function Popup({ lon, lat }: { lon: number; lat: number }) {
+export default function Popup({ lon, lat, navigate }: PopupProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [weatherData, setWeatherData] = useState<weatherDataType | null>(null);
   const [isFetching, setIsFetching] = useState(true);
@@ -78,16 +84,18 @@ export default function Popup({ lon, lat }: { lon: number; lat: number }) {
   }, []);
 
   const onClick = (e: MouseEvent<HTMLDivElement>) => {
-    console.log(typeof e);
     e.stopPropagation();
-
-    alert("hello");
+    if (!(weather && weatherData)) return;
+    navigate("/weather-info", {
+      state: { weatherInfo: weather, weatherCity: weatherData },
+    });
+    return;
   };
 
   return (
     <div
       onClick={(e) => onClick(e)}
-      className={`w-80 relative transform -translate-y-[55%] transition-all duration-200 ${
+      className={`lg:w-80 w-65  relative transform -translate-y-[55%] transition-all duration-200 ${
         isVisible ? "scale-100 " : "scale-0"
       }`}
     >
