@@ -1,3 +1,558 @@
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import Map from "ol/Map";
+import View from "ol/View";
+import TileLayer from "ol/layer/Tile";
+import XYZ from "ol/source/XYZ";
+import { fromLonLat, toLonLat } from "ol/proj";
+import VectorLayer from "ol/layer/Vector";
+import VectorSource from "ol/source/Vector";
+import Feature from "ol/Feature";
+import Point from "ol/geom/Point";
+import Icon from "ol/style/Icon";
+import Style from "ol/style/Style";
+import marker from "../../assets/maps-and-flags.png";
+import { useLocation } from "react-router-dom";
+import icons from "../../utility/attachIcon";
+import type { WeatherIconKey } from "../../utility/attachIcon";
+
+const API_KEY_2 = "6ed1c13520bbdb255f5c2fb196794ea8";
+const API_KEY = "YPC3DM45JTFTRKZF8EXVGKAZY";
+
+interface LngLat {
+  lon: number;
+  lat: number;
+}
+
+interface CurrWeather {
+  queryCost: number;
+  latitude: number;
+  longitude: number;
+  resolvedAddress: string;
+  address: string;
+  timezone: string;
+  tzoffset: number;
+  days: Day[];
+  currentConditions: CurrentConditions;
+}
+
+interface Day {
+  datetime: string;
+  datetimeEpoch: number;
+  tempmax: number;
+  tempmin: number;
+  temp: number;
+  feelslikemax: number;
+  feelslikemin: number;
+  feelslike: number;
+  dew: number;
+  humidity: number;
+  precip: number;
+  precipprob: number;
+  precipcover: number;
+  preciptype: string[];
+  snow: number;
+  snowdepth: number;
+  windgust: number;
+  windspeed: number;
+  winddir: number;
+  pressure: number;
+  cloudcover: number;
+  visibility: number;
+  solarradiation: number;
+  solarenergy: number;
+  uvindex: number;
+  severerisk: number;
+  sunrise: string;
+  sunriseEpoch: number;
+  sunset: string;
+  sunsetEpoch: number;
+  moonphase: number;
+  conditions: string;
+  description: string;
+  icon: string;
+  stations: string[] | null;
+  source: string;
+  hours?: Hour[];
+}
+interface Hour {
+  datetime: string;
+  datetimeEpoch: number;
+  temp: number;
+  feelslike: number;
+  humidity: number;
+  dew: number;
+  precip: number;
+  precipprob: number;
+  preciptype: string[];
+  windgust: number;
+  windspeed: number;
+  winddir: number;
+  pressure: number;
+  cloudcover: number;
+  visibility: number;
+  solarradiation: number;
+  solarenergy: number;
+  uvindex: number;
+  severerisk: number;
+  conditions: string;
+  icon: string;
+  stations: string[];
+  source: string;
+  sunrise: string;
+  sunriseEpoch: number;
+  sunset: string;
+  sunsetEpoch: number;
+  moonphase: number;
+}
+interface CurrentConditions {
+  datetime: string;
+  datetimeEpoch: number;
+  temp: number;
+  feelslike: number;
+  humidity: number;
+  dew: number;
+  precip: number;
+  precipprob: number;
+  snow: number;
+  snowdepth: number;
+  preciptype: string[];
+  windgust: number;
+  windspeed: number;
+  winddir: number;
+  pressure: number;
+  visibility: number;
+  cloudcover: number;
+  solarradiation: number;
+  solarenergy: number;
+  uvindex: number;
+  severerisk: number;
+  conditions: string;
+  icon: string;
+  stations: string[];
+  source: string;
+  sunrise: string;
+  sunriseEpoch: number;
+  sunset: string;
+  sunsetEpoch: number;
+  moonphase: number;
+}
+
+interface CityInfo {
+  name: string;
+  local_names: {
+    ja: string;
+    jv: string;
+    id: string;
+    [key: string]: string;
+  };
+  lat: number;
+  lon: number;
+  country: string;
+  state: string;
+}
+
 export default function WeatherInfo() {
-  return <div>Hello</div>;
+  const mapRef = useRef<HTMLDivElement>(null);
+  const map = useRef<Map | null>(null);
+  const markerLayer = useRef<VectorLayer<VectorSource> | null>(null);
+  const { state } = useLocation();
+  const { weatherData, weatherCity } = state;
+  const [currWeather, setCurrWeather] = useState<CurrWeather>(weatherData);
+  const [isFetching, setIsFetching] = useState(false);
+  const [markerCoords, setMarkerCoords] = useState<[number, number] | null>(
+    fromLonLat([weatherCity.lon, weatherCity.lat]) as [number, number]
+  );
+  const [cityInfo, setCityInfo] = useState<CityInfo | null>(null);
+  const [fetchParams, setFetchParams] = useState<LngLat>({
+    lon: weatherCity.lon,
+    lat: weatherCity.lat,
+  });
+  // For the horizontal scroller:
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [initialScroll, setInitialScroll] = useState(0);
+  console.log(currWeather);
+
+  function addMarker(coordinates: [number, number]) {
+    if (!markerLayer.current) return;
+
+    markerLayer.current.getSource()?.clear();
+
+    const iconFeature = new Feature({
+      geometry: new Point(coordinates),
+    });
+    const iconStyle = new Style({
+      image: new Icon({
+        anchor: [0.5, 1],
+        src: marker,
+        scale: 0.05,
+      }),
+    });
+    iconFeature.setStyle(iconStyle);
+    markerLayer.current.getSource()?.addFeature(iconFeature);
+  }
+
+  useEffect(() => {
+    const { lon, lat } = fetchParams;
+
+    async function fetchWeatherData(lon: number, lat: number) {
+      try {
+        const res = await fetch(
+          `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${lat},${lon}?key=${API_KEY}&unitGroup=metric&include=current,hours`
+        );
+
+        if (res.ok) {
+          const data = await res.json();
+          setCurrWeather(data);
+        } else {
+          console.warn("Weather API failed:", res.statusText);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function fetchCityData(lon: number, lat: number) {
+      try {
+        const res = await fetch(
+          `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY_2}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data.length > 0) {
+            setCityInfo(data[0]);
+          }
+        } else {
+          console.warn("Reverse geocode failed:", res.statusText);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsFetching(false);
+      }
+    }
+
+    setIsFetching(true);
+    fetchWeatherData(lon, lat);
+    fetchCityData(lon, lat);
+  }, [fetchParams]);
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    const baseLayer = new TileLayer({
+      source: new XYZ({
+        url: `https://api.maptiler.com/maps/outdoor-v2/{z}/{x}/{y}.png?key=MeDWRjir5sGmDMPsPW8P`,
+        crossOrigin: "anonymous",
+      }),
+    });
+
+    const vectorSource = new VectorSource();
+    markerLayer.current = new VectorLayer({ source: vectorSource });
+
+    map.current = new Map({
+      target: mapRef.current,
+      layers: [baseLayer, markerLayer.current],
+      view: new View({
+        center: markerCoords || fromLonLat([0, 0]),
+        zoom: 8,
+      }),
+      controls: [],
+    });
+
+    map.current.on("click", (event) => {
+      const projected = event.coordinate as [number, number];
+      const [lon, lat] = toLonLat(projected);
+
+      setMarkerCoords(projected);
+
+      setFetchParams({ lon, lat });
+    });
+
+    return () => {
+      if (map.current) {
+        map.current.setTarget(undefined);
+        map.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (markerCoords && map.current && markerLayer.current) {
+      addMarker(markerCoords);
+    }
+  }, [markerCoords]);
+
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!scrollerRef.current) return;
+
+      e.preventDefault();
+
+      const rect = scrollerRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      // Adjust sensitivity
+      const walk = (x - startX) * 1.5;
+      scrollerRef.current.scrollLeft = initialScroll - walk;
+    },
+    [startX, initialScroll]
+  );
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // useCallback and proper cleanup
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener("mousemove", handleMouseMove, {
+        passive: false,
+      });
+      document.addEventListener("mouseup", handleMouseUp);
+
+      return () => {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp]);
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!scrollerRef.current) return;
+
+    //  start drag on left mouse button
+    if (e.button !== 0) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    setIsDragging(true);
+
+    const rect = scrollerRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    setStartX(x);
+    setInitialScroll(scrollerRef.current.scrollLeft);
+  };
+
+  // add wheel scroll support
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (!scrollerRef.current) return;
+    // prevent default vertical scroll
+    e.preventDefault();
+    // scroll horizontally
+    scrollerRef.current.scrollLeft += e.deltaY;
+  };
+  return (
+    <div className="h-screen w-screen bg-gradient-to-br from-neutral-800 via-neutral-700 to-neutral-800 flex flex-col lg:px-20">
+      {/* Search bar */}
+      <div className="flex items-center px-4 py-3 h-16 lg:px-20">
+        <input
+          type="text"
+          placeholder="Search weather…"
+          className="flex-grow px-4 py-2 rounded-lg bg-neutral-800/50 backdrop-blur-sm border border-neutral-600/30 text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-500/50 focus:border-neutral-500/50 max-w-sm transition-all duration-300"
+        />
+      </div>
+
+      {/* Main content */}
+      <div className="flex flex-wrap lg:flex-nowrap overflow-auto flex-1 px-4 lg:px-20 gap-6 pb-6">
+        <div className="flex flex-col flex-grow lg:flex-grow-0 lg:w-full gap-6 min-w-[280px]">
+          {isFetching || !currWeather?.currentConditions || !cityInfo ? (
+            // Skeleton with matching structure and height
+            <div className="bg-gradient-to-br from-neutral-700/60 to-neutral-600/40 backdrop-blur-md border border-neutral-500/20 rounded-xl p-4 sm:p-6 shadow-2xl hover:shadow-neutral-600/30 transition-all duration-300">
+              <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4 mb-6">
+                {/* Weather icon skeleton */}
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-neutral-600/40 rounded-lg animate-pulse flex-shrink-0"></div>
+
+                {/* City name skeleton */}
+                <div className="flex flex-col min-w-0 gap-2">
+                  <div className="h-8 sm:h-10 lg:h-12 w-32 sm:w-40 bg-neutral-600/40 rounded animate-pulse"></div>
+                  <div className="h-4 w-12 bg-neutral-600/40 rounded animate-pulse"></div>
+                </div>
+
+                {/* Temperature skeleton */}
+                <div className="flex flex-col items-center sm:items-end text-center sm:text-right gap-1">
+                  <div className="h-6 sm:h-8 w-12 bg-neutral-600/40 rounded animate-pulse"></div>
+                  <div className="h-3 sm:h-4 w-20 bg-neutral-600/40 rounded animate-pulse"></div>
+                </div>
+
+                {/* Humidity skeleton */}
+                <div className="flex flex-col items-center sm:items-end text-center sm:text-right gap-1">
+                  <div className="h-6 sm:h-8 w-12 bg-neutral-600/40 rounded animate-pulse"></div>
+                  <div className="h-3 sm:h-4 w-16 bg-neutral-600/40 rounded animate-pulse"></div>
+                </div>
+
+                {/* Wind speed skeleton */}
+                <div className="flex flex-col items-center sm:items-end text-center sm:text-right gap-1">
+                  <div className="h-6 sm:h-8 w-8 bg-neutral-600/40 rounded animate-pulse"></div>
+                  <div className="h-3 sm:h-4 w-20 bg-neutral-600/40 rounded animate-pulse"></div>
+                </div>
+              </div>
+
+              <div>
+                <div className="h-4 w-32 bg-neutral-600/40 rounded animate-pulse mb-3"></div>
+                <div className="flex gap-4 overflow-hidden">
+                  {Array.from({ length: 8 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="flex flex-col items-center min-w-[60px] bg-neutral-800/30 rounded-lg p-3 border border-neutral-600/20"
+                    >
+                      <div className="h-3 w-8 bg-neutral-600/40 rounded animate-pulse mb-2"></div>
+                      <div className="w-8 h-8 bg-neutral-600/40 rounded animate-pulse mb-2"></div>
+                      <div className="h-4 w-6 bg-neutral-600/40 rounded animate-pulse mb-1"></div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 rounded-full bg-neutral-600/40 animate-pulse"></div>
+                        <div className="h-3 w-6 bg-neutral-600/40 rounded animate-pulse"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-gradient-to-br from-neutral-700/60 to-neutral-600/40 backdrop-blur-md border border-neutral-500/20 rounded-xl p-4 sm:p-6 shadow-2xl hover:shadow-neutral-600/30 transition-all duration-300">
+              <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
+                <img
+                  src={
+                    icons[currWeather.currentConditions.icon as WeatherIconKey]
+                  }
+                  alt="Weather icon"
+                  className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0"
+                />
+
+                <div className="flex flex-col min-w-0">
+                  <span className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-white truncate">
+                    {cityInfo?.name || "Unknown Location"}
+                  </span>
+                  <span className="text-sm font-semibold text-neutral-200">
+                    {cityInfo?.country || "Unknown"}
+                  </span>
+                </div>
+
+                <div className="flex flex-col items-center sm:items-end text-center sm:text-right">
+                  <span className="text-xl sm:text-2xl font-semibold text-white">
+                    {Math.round(currWeather.currentConditions.temp)}°
+                  </span>
+                  <span className="text-xs sm:text-sm text-neutral-200">
+                    Temperature
+                  </span>
+                </div>
+
+                <div className="flex flex-col items-center sm:items-end text-center sm:text-right">
+                  <span className="text-2xl sm:text-2xl font-semibold text-white">
+                    {Math.round(currWeather.currentConditions.humidity)}{" "}
+                    <sub className="text-xs sm:text-sm text-neutral-200 ">
+                      %
+                    </sub>
+                  </span>
+                  <span className="text-xs sm:text-sm text-neutral-200">
+                    Humidity
+                  </span>
+                </div>
+
+                <div className="flex flex-col items-center sm:items-end text-center sm:text-right">
+                  <span className="text-xl sm:text-2xl font-semibold text-white flex items-baseline">
+                    {Math.round(currWeather.currentConditions.windspeed)}
+                    <sub className="text-xs sm:text-sm text-neutral-200 ml-1">
+                      km/h
+                    </sub>
+                  </span>
+                  <span className="text-xs sm:text-sm text-neutral-200">
+                    Wind Speed
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <h3 className="text-sm font-semibold text-neutral-200 mb-3">
+                  Today's Forecast
+                </h3>
+                <div
+                  ref={scrollerRef}
+                  className={`flex gap-4 overflow-x-auto scrollbar-hide pb-2 select-none ${
+                    isDragging ? "cursor-grabbing" : "cursor-grab"
+                  }`}
+                  style={{
+                    scrollbarWidth: "none",
+                    msOverflowStyle: "none",
+                  }}
+                  onMouseDown={handleMouseDown}
+                  onWheel={handleWheel}
+                  //   onSelectStart={(e) => e.preventDefault()}
+                >
+                  {currWeather.days[0].hours?.map((hour, index) => {
+                    const hourNum = parseInt(hour.datetime.split(":")[0], 10);
+                    const displayTime =
+                      hourNum > 12
+                        ? `${hourNum - 12} PM`
+                        : hourNum === 12
+                        ? "12 PM"
+                        : hourNum === 0
+                        ? "12 AM"
+                        : `${hourNum} AM`;
+
+                    return (
+                      <div
+                        key={index}
+                        className="flex flex-col items-center min-w-[80px] bg-neutral-800/30 rounded-lg p-3 border border-neutral-600/20 hover:bg-neutral-700/40 transition-colors select-none"
+                      >
+                        <span className="text-xs text-neutral-300 font-medium mb-1">
+                          {displayTime}
+                        </span>
+                        <img
+                          src={icons[hour.icon as WeatherIconKey]}
+                          alt={hour.conditions}
+                          className="w-8 h-8 mb-2"
+                          draggable={false}
+                        />
+                        <span className="text-sm font-semibold text-white mb-1">
+                          {Math.round(hour.temp)}°
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <div className="w-2 h-2 rounded-full bg-blue-400/60"></div>
+                          <span className="text-xs text-blue-300">
+                            {Math.round(hour.precipprob || 0)}%
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="bg-gradient-to-br from-neutral-600/60 to-neutral-700/40 backdrop-blur-md  flex-1 rounded-xl p-6 shadow-2xl hover:shadow-neutral-500/30 transition-all duration-300">
+            <div className="text-white/90 text-lg font-semibold mb-2">
+              Temperature
+            </div>
+            <div className="text-white/70">
+              Temperature info will appear here
+            </div>
+          </div>
+        </div>
+
+        {/* Map + Info */}
+        <div className="flex flex-col flex-grow lg:flex-grow-0 lg:w-1/2 gap-6 min-w-[280px]">
+          <div
+            ref={mapRef}
+            className="
+               
+              rounded-xl shadow-2xl  
+              transition-all duration-300 overflow-hidden h-[293px] w-full
+            "
+          ></div>
+
+          <div className="bg-gradient-to-br from-neutral-600/60 to-neutral-700/40 backdrop-blur-md flex-1 rounded-xl p-6 shadow-2xl hover:shadow-neutral-500/30 transition-all duration-300">
+            <div className="text-white/90 text-lg font-semibold mb-2">
+              Temperature
+            </div>
+            <div className="text-white/70">
+              Temperature info will appear here
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
