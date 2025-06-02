@@ -34,7 +34,7 @@ function lineChart(data: ChartDataPoint[]) {
   }
   const containerRect = container.getBoundingClientRect();
   const margin = { top: 20, right: 10, bottom: 40, left: 50 };
-  const containerWidth = Math.max(containerRect.width - 20, 300);
+  const containerWidth = Math.max(containerRect.width - 20, 300); // 20px for padding
   const containerHeight = Math.max(containerRect.height - 20, 200);
   const width = containerWidth - margin.left - margin.right;
   const height = containerHeight - margin.top - margin.bottom;
@@ -55,15 +55,13 @@ function lineChart(data: ChartDataPoint[]) {
 
   const dataset = data.map((d) => ({ ...d, x: new Date(`1970-01-01T${d.x}`) }));
 
-  const xExtent = d3.extent(dataset, (d) => d.x);
+  x.domain(d3.extent(dataset, (d) => d.x));
+  y.domain([
+    Math.floor(d3.min(dataset, (d) => d.y)) - 2,
+    Math.ceil(d3.max(dataset, (d) => d.y)) + 2,
+  ]);
 
-  if (xExtent[0] !== undefined && xExtent[1] !== undefined) {
-    x.domain(xExtent);
-  } else {
-    x.domain([new Date(), new Date()]);
-  }
-
-  const customTickFormat = (d: Date) => {
+  const customTickFormat = (d) => {
     const hours = d.getHours();
     const ampm = hours >= 12 ? "PM" : "AM";
     const displayHour = hours % 12 || 12;
@@ -117,18 +115,15 @@ function lineChart(data: ChartDataPoint[]) {
     .attr("stroke-width", 2)
     .attr("d", line);
 
-  const pathElement = path.node();
+  const totalLength = path.node().getTotalLength();
 
-  if (pathElement) {
-    const totalLength = pathElement.getTotalLength();
-    path
-      .attr("stroke-dasharray", totalLength + " " + totalLength)
-      .attr("stroke-dashoffset", totalLength)
-      .transition()
-      .duration(500)
-      .ease(d3.easeLinear)
-      .attr("stroke-dashoffset", 0);
-  }
+  path
+    .attr("stroke-dasharray", totalLength + " " + totalLength)
+    .attr("stroke-dashoffset", totalLength)
+    .transition()
+    .duration(500)
+    .ease(d3.easeLinear)
+    .attr("stroke-dashoffset", 0);
 }
 
 export default function WeatherInfo() {
@@ -157,6 +152,7 @@ export default function WeatherInfo() {
   const [humidData, setHumidData] = useState<ChartDataPoint[] | null>(null);
   const [activeChart, setActiveChart] = useState("temp");
   console.log(currWeather);
+  const [forecastDays, setForecastDays] = useState("4-days");
 
   function addMarker(coordinates: [number, number]) {
     if (!markerLayer.current) return;
@@ -389,7 +385,7 @@ export default function WeatherInfo() {
       <div className="flex items-center px-4 py-3 h-16 lg:px-20">
         <input
           type="text"
-          placeholder="Search weather…"
+          placeholder="Search city..."
           className="flex-grow px-4 py-2 rounded-lg bg-neutral-800/50 backdrop-blur-sm border border-neutral-600/30 text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-500/50 focus:border-neutral-500/50 max-w-sm transition-all duration-300"
         />
       </div>
@@ -564,12 +560,12 @@ export default function WeatherInfo() {
           <div className="bg-gradient-to-br from-neutral-600/60 to-neutral-700/40 backdrop-blur-md   rounded-xl shadow-2xl hover:shadow-neutral-500/30 transition-all duration-300 h-[400px] flex flex-col">
             <div className="flex justify-between px-5 pt-2 mb-2 flex-wrap">
               <div className="text-2xl font-semibold text-white ">Overview</div>
-              <div className="flex gap-4 bg-neutral-700 shadow rounded-full px-4 text-white font-semibold">
+              <div className="flex gap-4 bg-neutral-700 shadow rounded-full  text-white font-semibold ">
                 <button
                   className={`${
                     activeChart === "temp"
                       ? "bg-neutral-400 rounded-full px-4"
-                      : "px-4"
+                      : "px-4 cursor-pointer"
                   }`}
                   onClick={() => setActiveChart("temp")}
                 >
@@ -579,7 +575,7 @@ export default function WeatherInfo() {
                   className={`${
                     activeChart === "uv"
                       ? "bg-neutral-400 rounded-full px-4"
-                      : "px-4"
+                      : "px-4 cursor-pointer"
                   }`}
                   onClick={() => setActiveChart("uv")}
                 >
@@ -589,7 +585,7 @@ export default function WeatherInfo() {
                   className={`${
                     activeChart === "humid"
                       ? "bg-neutral-400 rounded-full px-4"
-                      : "px-4"
+                      : "px-4 cursor-pointer"
                   }`}
                   onClick={() => setActiveChart("humid")}
                 >
@@ -612,12 +608,36 @@ export default function WeatherInfo() {
             "
           ></div>
 
-          <div className="bg-gradient-to-br from-neutral-600/60 to-neutral-700/40 backdrop-blur-md flex-1 rounded-xl p-6 shadow-2xl hover:shadow-neutral-500/30 transition-all duration-300">
-            <div className="text-white/90 text-lg font-semibold mb-2">
-              Temperature
-            </div>
-            <div className="text-white/70">
-              Temperature info will appear here
+          <div className="bg-gradient-to-br from-neutral-600/60 to-neutral-700/40 backdrop-blur-md  rounded-xl shadow-2xl hover:shadow-neutral-500/30 transition-all duration-300 h-[300px] ">
+            <div className="flex flex-col h-full">
+              <div className=" flex justify-between px-4  py-2 flex-wrap">
+                <span className="text-2xl font-semibold text-white">
+                  Forecast
+                </span>
+                <div className=" flex  bg-neutral-700 shadow rounded-full  text-white font-semibold gap-4">
+                  <button
+                    onClick={() => setForecastDays("4-days")}
+                    className={`${
+                      forecastDays === "4-days"
+                        ? "bg-neutral-400 rounded-full px-4"
+                        : "px-3"
+                    }`}
+                  >
+                    4 days
+                  </button>
+                  <button
+                    onClick={() => setForecastDays("10-days")}
+                    className={`${
+                      forecastDays === "10-days"
+                        ? "bg-neutral-400 rounded-full px-4"
+                        : "px-3"
+                    }`}
+                  >
+                    10 days
+                  </button>
+                </div>
+              </div>
+              <div className="bg-amber-200 h-[100%]">c</div>
             </div>
           </div>
         </div>
