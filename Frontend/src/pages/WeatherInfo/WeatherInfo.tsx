@@ -1,3 +1,4 @@
+import "./WeatherInfo.css";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import * as d3 from "d3";
 import Map from "ol/Map";
@@ -391,7 +392,7 @@ export default function WeatherInfo() {
       </div>
 
       {/* Main content */}
-      <div className="flex flex-wrap lg:flex-nowrap overflow-auto flex-1 px-4 lg:px-20 gap-6 pb-6">
+      <div className="flex flex-wrap lg:flex-nowrap overflow-auto flex-1 px-4 lg:px-20 gap-6 pb-6 hide-scrollbar mb-5">
         <div className="flex flex-col flex-grow lg:flex-grow-0 lg:w-full gap-6 min-w-[280px]">
           {isFetching || !currWeather?.currentConditions || !cityInfo ? (
             // Skeleton with matching structure and height
@@ -608,36 +609,58 @@ export default function WeatherInfo() {
             "
           ></div>
 
-          <div className="bg-gradient-to-br from-neutral-600/60 to-neutral-700/40 backdrop-blur-md  rounded-xl shadow-2xl hover:shadow-neutral-500/30 transition-all duration-300 h-[300px] ">
+          <div className="bg-gradient-to-br from-neutral-600/60 to-neutral-700/40 backdrop-blur-md rounded-xl shadow-2xl hover:shadow-neutral-500/30 transition-all duration-300 h-[300px]">
             <div className="flex flex-col h-full">
-              <div className=" flex justify-between px-4  py-2 flex-wrap">
+              {/* Header */}
+              <div className="flex justify-between px-4 py-2 flex-wrap mb-2">
                 <span className="text-2xl font-semibold text-white">
                   Forecast
                 </span>
-                <div className=" flex  bg-neutral-700 shadow rounded-full  text-white font-semibold gap-4">
-                  <button
-                    onClick={() => setForecastDays("4-days")}
-                    className={`${
-                      forecastDays === "4-days"
-                        ? "bg-neutral-400 rounded-full px-4"
-                        : "px-3"
-                    }`}
-                  >
-                    4 days
-                  </button>
-                  <button
-                    onClick={() => setForecastDays("10-days")}
-                    className={`${
-                      forecastDays === "10-days"
-                        ? "bg-neutral-400 rounded-full px-4"
-                        : "px-3"
-                    }`}
-                  >
-                    10 days
-                  </button>
-                </div>
               </div>
-              <div className="bg-amber-200 h-[100%]">c</div>
+
+              {/* Scrollable content */}
+              {currWeather ? (
+                <div className="flex-1 overflow-y-auto flex flex-col gap-2 pb-2 hide-scrollbar">
+                  {currWeather.days.map((day, index) => {
+                    const formatDate = (isoDate: string) => {
+                      const date = new Date(isoDate);
+                      const dayNum = date.getDate();
+                      const month = date.toLocaleString("en-US", {
+                        month: "short",
+                      }); // "Jun"
+                      const weekday = date.toLocaleString("en-US", {
+                        weekday: "short",
+                      }); // "Tue"
+                      return `${dayNum} ${month}, ${weekday}`;
+                    };
+                    return (
+                      <div
+                        key={index}
+                        className="py-2.5 flex justify-between px-4 bg-neutral-800/60 mx-4 rounded-xl"
+                      >
+                        <div className="flex items-center">
+                          <img
+                            className="size-8"
+                            src={icons[day.icon as WeatherIconKey]}
+                            alt=""
+                          />
+                          <span className="pr-2 pl-2 text-md font-semibold text-white">
+                            {day.temp}
+                          </span>
+                          <span className="text-md text-white font-semibold">
+                            {day.conditions.split(",")[0]}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4 text-white">
+                          <span>{formatDate(day.datetime)}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                ""
+              )}
             </div>
           </div>
         </div>
