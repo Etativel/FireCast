@@ -33,8 +33,8 @@ function lineChart(data: ChartDataPoint[]) {
     return;
   }
   const containerRect = container.getBoundingClientRect();
-  const margin = { top: 20, right: 30, bottom: 40, left: 50 };
-  const containerWidth = Math.max(containerRect.width - 20, 300); // 20px for padding
+  const margin = { top: 20, right: 10, bottom: 40, left: 50 };
+  const containerWidth = Math.max(containerRect.width - 20, 300);
   const containerHeight = Math.max(containerRect.height - 20, 200);
   const width = containerWidth - margin.left - margin.right;
   const height = containerHeight - margin.top - margin.bottom;
@@ -55,13 +55,15 @@ function lineChart(data: ChartDataPoint[]) {
 
   const dataset = data.map((d) => ({ ...d, x: new Date(`1970-01-01T${d.x}`) }));
 
-  x.domain(d3.extent(dataset, (d) => d.x));
-  y.domain([
-    Math.floor(d3.min(dataset, (d) => d.y)) - 2,
-    Math.ceil(d3.max(dataset, (d) => d.y)) + 2,
-  ]);
+  const xExtent = d3.extent(dataset, (d) => d.x);
 
-  const customTickFormat = (d) => {
+  if (xExtent[0] !== undefined && xExtent[1] !== undefined) {
+    x.domain(xExtent);
+  } else {
+    x.domain([new Date(), new Date()]);
+  }
+
+  const customTickFormat = (d: Date) => {
     const hours = d.getHours();
     const ampm = hours >= 12 ? "PM" : "AM";
     const displayHour = hours % 12 || 12;
@@ -89,20 +91,20 @@ function lineChart(data: ChartDataPoint[]) {
 
   yAxis.selectAll(".tick").each(function () {
     const tickValue = d3.select(this).select("text").text();
-    const yPosition = y(tickValue);
+    const yPosition = y(parseFloat(tickValue));
     svg
       .append("line")
       .attr("x1", 0)
       .attr("x2", width)
       .attr("y1", yPosition)
       .attr("y2", yPosition)
-      .attr("stroke", "rgba(255, 255, 255)")
+      .attr("stroke", "rgba(255, 255, 255, 0.5)")
       .attr("stroke-width", 1)
       .attr("stroke-dasharray", "5,5");
   });
 
   const line = d3
-    .line()
+    .line<{ x: Date; y: number }>()
     .x((d) => x(d.x))
     .curve(d3.curveBasis)
     .y((d) => y(d.y));
@@ -115,15 +117,18 @@ function lineChart(data: ChartDataPoint[]) {
     .attr("stroke-width", 2)
     .attr("d", line);
 
-  const totalLength = path.node().getTotalLength();
+  const pathElement = path.node();
 
-  path
-    .attr("stroke-dasharray", totalLength + " " + totalLength)
-    .attr("stroke-dashoffset", totalLength)
-    .transition()
-    .duration(500)
-    .ease(d3.easeLinear)
-    .attr("stroke-dashoffset", 0);
+  if (pathElement) {
+    const totalLength = pathElement.getTotalLength();
+    path
+      .attr("stroke-dasharray", totalLength + " " + totalLength)
+      .attr("stroke-dashoffset", totalLength)
+      .transition()
+      .duration(500)
+      .ease(d3.easeLinear)
+      .attr("stroke-dashoffset", 0);
+  }
 }
 
 export default function WeatherInfo() {
