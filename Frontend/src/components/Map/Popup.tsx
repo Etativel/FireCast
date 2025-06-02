@@ -1,34 +1,8 @@
 import { useEffect, useState } from "react";
 import type { MouseEvent } from "react";
-import icons from "../../utility/attachIcon";
 import { Wind, Droplets, Gauge, Eye } from "lucide-react";
-import type { NavigateFunction } from "react-router-dom";
-
-interface PopupProps {
-  lon: number;
-  lat: number;
-  navigate: NavigateFunction;
-}
-interface weatherDataType {
-  name: string;
-  country: string;
-  lat: number;
-  lon: number;
-}
-
-type Weather = {
-  currentConditions: {
-    icon: keyof typeof icons;
-    temp: number;
-    windspeed: number;
-    pressure: number;
-    conditions: string;
-    feelslike: number;
-    uvindex: number;
-    humidity: number;
-    visibility: number;
-  };
-};
+import icons from "../../utility/attachIcon";
+import type { Weather, PopupProps, weatherDataType } from "../../types/Map/Map";
 
 const API_KEY_2 = "6ed1c13520bbdb255f5c2fb196794ea8";
 const API_KEY = "YPC3DM45JTFTRKZF8EXVGKAZY";

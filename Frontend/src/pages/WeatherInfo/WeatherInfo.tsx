@@ -14,142 +14,14 @@ import marker from "../../assets/maps-and-flags.png";
 import { useLocation } from "react-router-dom";
 import icons from "../../utility/attachIcon";
 import type { WeatherIconKey } from "../../utility/attachIcon";
+import type {
+  CurrWeather,
+  CityInfo,
+  LngLat,
+} from "../../types/WeatherInfo/WeatherInfo";
 
 const API_KEY_2 = "6ed1c13520bbdb255f5c2fb196794ea8";
 const API_KEY = "YPC3DM45JTFTRKZF8EXVGKAZY";
-
-interface LngLat {
-  lon: number;
-  lat: number;
-}
-
-interface CurrWeather {
-  queryCost: number;
-  latitude: number;
-  longitude: number;
-  resolvedAddress: string;
-  address: string;
-  timezone: string;
-  tzoffset: number;
-  days: Day[];
-  currentConditions: CurrentConditions;
-}
-
-interface Day {
-  datetime: string;
-  datetimeEpoch: number;
-  tempmax: number;
-  tempmin: number;
-  temp: number;
-  feelslikemax: number;
-  feelslikemin: number;
-  feelslike: number;
-  dew: number;
-  humidity: number;
-  precip: number;
-  precipprob: number;
-  precipcover: number;
-  preciptype: string[];
-  snow: number;
-  snowdepth: number;
-  windgust: number;
-  windspeed: number;
-  winddir: number;
-  pressure: number;
-  cloudcover: number;
-  visibility: number;
-  solarradiation: number;
-  solarenergy: number;
-  uvindex: number;
-  severerisk: number;
-  sunrise: string;
-  sunriseEpoch: number;
-  sunset: string;
-  sunsetEpoch: number;
-  moonphase: number;
-  conditions: string;
-  description: string;
-  icon: string;
-  stations: string[] | null;
-  source: string;
-  hours?: Hour[];
-}
-interface Hour {
-  datetime: string;
-  datetimeEpoch: number;
-  temp: number;
-  feelslike: number;
-  humidity: number;
-  dew: number;
-  precip: number;
-  precipprob: number;
-  preciptype: string[];
-  windgust: number;
-  windspeed: number;
-  winddir: number;
-  pressure: number;
-  cloudcover: number;
-  visibility: number;
-  solarradiation: number;
-  solarenergy: number;
-  uvindex: number;
-  severerisk: number;
-  conditions: string;
-  icon: string;
-  stations: string[];
-  source: string;
-  sunrise: string;
-  sunriseEpoch: number;
-  sunset: string;
-  sunsetEpoch: number;
-  moonphase: number;
-}
-interface CurrentConditions {
-  datetime: string;
-  datetimeEpoch: number;
-  temp: number;
-  feelslike: number;
-  humidity: number;
-  dew: number;
-  precip: number;
-  precipprob: number;
-  snow: number;
-  snowdepth: number;
-  preciptype: string[];
-  windgust: number;
-  windspeed: number;
-  winddir: number;
-  pressure: number;
-  visibility: number;
-  cloudcover: number;
-  solarradiation: number;
-  solarenergy: number;
-  uvindex: number;
-  severerisk: number;
-  conditions: string;
-  icon: string;
-  stations: string[];
-  source: string;
-  sunrise: string;
-  sunriseEpoch: number;
-  sunset: string;
-  sunsetEpoch: number;
-  moonphase: number;
-}
-
-interface CityInfo {
-  name: string;
-  local_names: {
-    ja: string;
-    jv: string;
-    id: string;
-    [key: string]: string;
-  };
-  lat: number;
-  lon: number;
-  country: string;
-  state: string;
-}
 
 export default function WeatherInfo() {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -172,7 +44,6 @@ export default function WeatherInfo() {
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [initialScroll, setInitialScroll] = useState(0);
-  console.log(currWeather);
 
   function addMarker(coordinates: [number, number]) {
     if (!markerLayer.current) return;
@@ -393,7 +264,7 @@ export default function WeatherInfo() {
               <div>
                 <div className="h-4 w-32 bg-neutral-600/40 rounded animate-pulse mb-3"></div>
                 <div className="flex gap-4 overflow-hidden">
-                  {Array.from({ length: 8 }).map((_, index) => (
+                  {Array.from({ length: 10 }).map((_, index) => (
                     <div
                       key={index}
                       className="flex flex-col items-center min-w-[60px] bg-neutral-800/30 rounded-lg p-3 border border-neutral-600/20"
@@ -422,7 +293,7 @@ export default function WeatherInfo() {
                 />
 
                 <div className="flex flex-col min-w-0">
-                  <span className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-white truncate">
+                  <span className=" h-fit text-2xl sm:text-3xl lg:text-4xl font-semibold text-white">
                     {cityInfo?.name || "Unknown Location"}
                   </span>
                   <span className="text-sm font-semibold text-neutral-200">
@@ -539,7 +410,7 @@ export default function WeatherInfo() {
             className="
                
               rounded-xl shadow-2xl  
-              transition-all duration-300 overflow-hidden h-[293px] w-full
+              transition-all duration-300 overflow-hidden h-[320px] w-full
             "
           ></div>
 

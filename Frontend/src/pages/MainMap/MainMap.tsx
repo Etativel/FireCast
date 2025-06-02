@@ -3,8 +3,8 @@ import * as maptilersdk from "@maptiler/sdk";
 import "@maptiler/sdk/dist/maptiler-sdk.css";
 import { createRoot } from "react-dom/client";
 import Popup from "../../components/Map/Popup";
-import "./map.css";
 import { useNavigate } from "react-router-dom";
+import "./map.css";
 
 type ClickEvent = {
   lngLat: {
