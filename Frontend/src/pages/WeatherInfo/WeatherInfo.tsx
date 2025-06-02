@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import * as d3 from "d3";
 import Map from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
@@ -23,6 +24,108 @@ import type {
 const API_KEY_2 = "6ed1c13520bbdb255f5c2fb196794ea8";
 const API_KEY = "YPC3DM45JTFTRKZF8EXVGKAZY";
 
+type ChartDataPoint = { x: string; y: number };
+
+function lineChart(data: ChartDataPoint[]) {
+  const container = document.getElementById("chart-container");
+  if (!container) {
+    console.warn("Chart container not found");
+    return;
+  }
+  const containerRect = container.getBoundingClientRect();
+  const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+  const containerWidth = Math.max(containerRect.width - 20, 300); // 20px for padding
+  const containerHeight = Math.max(containerRect.height - 20, 200);
+  const width = containerWidth - margin.left - margin.right;
+  const height = containerHeight - margin.top - margin.bottom;
+  d3.select("#chart-container").select("svg").remove();
+
+  const x = d3.scaleTime().range([0, width]);
+  const y = d3.scaleLinear().range([height, 0]);
+
+  const svg = d3
+    .select("#chart-container")
+    .append("svg")
+    .attr("class", "svg-chart")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .style("background-color", "transparent")
+    .append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const dataset = data.map((d) => ({ ...d, x: new Date(`1970-01-01T${d.x}`) }));
+
+  x.domain(d3.extent(dataset, (d) => d.x));
+  y.domain([
+    Math.floor(d3.min(dataset, (d) => d.y)) - 2,
+    Math.ceil(d3.max(dataset, (d) => d.y)) + 2,
+  ]);
+
+  const customTickFormat = (d) => {
+    const hours = d.getHours();
+    const ampm = hours >= 12 ? "PM" : "AM";
+    const displayHour = hours % 12 || 12;
+    return `${displayHour} ${ampm}`;
+  };
+
+  const xAxis = svg
+    .append("g")
+    .attr("transform", `translate(0,${height})`)
+    .call(d3.axisBottom(x).tickFormat(customTickFormat));
+
+  const yAxis = svg.append("g").call(d3.axisLeft(y).tickFormat(d3.format("d")));
+
+  xAxis.select(".domain").remove();
+  yAxis.select(".domain").remove();
+
+  xAxis.selectAll(".tick line").style("opacity", 0);
+  yAxis.selectAll(".tick line").style("opacity", 0);
+  xAxis.selectAll("text").style("opacity", 0.7);
+  yAxis.selectAll("text").style("opacity", 0.7);
+
+  xAxis.selectAll("text").style("opacity", 0.7).style("fill", "#ffffff"); // white
+
+  yAxis.selectAll("text").style("opacity", 0.7).style("fill", "#ffffff"); // white
+
+  yAxis.selectAll(".tick").each(function () {
+    const tickValue = d3.select(this).select("text").text();
+    const yPosition = y(tickValue);
+    svg
+      .append("line")
+      .attr("x1", 0)
+      .attr("x2", width)
+      .attr("y1", yPosition)
+      .attr("y2", yPosition)
+      .attr("stroke", "rgba(255, 255, 255)")
+      .attr("stroke-width", 1)
+      .attr("stroke-dasharray", "5,5");
+  });
+
+  const line = d3
+    .line()
+    .x((d) => x(d.x))
+    .curve(d3.curveBasis)
+    .y((d) => y(d.y));
+
+  const path = svg
+    .append("path")
+    .datum(dataset)
+    .attr("fill", "none")
+    .attr("stroke", "rgba(198, 228, 230, 1)")
+    .attr("stroke-width", 2)
+    .attr("d", line);
+
+  const totalLength = path.node().getTotalLength();
+
+  path
+    .attr("stroke-dasharray", totalLength + " " + totalLength)
+    .attr("stroke-dashoffset", totalLength)
+    .transition()
+    .duration(500)
+    .ease(d3.easeLinear)
+    .attr("stroke-dashoffset", 0);
+}
+
 export default function WeatherInfo() {
   const mapRef = useRef<HTMLDivElement>(null);
   const map = useRef<Map | null>(null);
@@ -44,6 +147,11 @@ export default function WeatherInfo() {
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [initialScroll, setInitialScroll] = useState(0);
+  const [uvData, setUvData] = useState<ChartDataPoint[] | null>(null);
+  const [tempData, setTempData] = useState<ChartDataPoint[] | null>(null);
+  const [humidData, setHumidData] = useState<ChartDataPoint[] | null>(null);
+  const [activeChart, setActiveChart] = useState("temp");
+  console.log(currWeather);
 
   function addMarker(coordinates: [number, number]) {
     if (!markerLayer.current) return;
@@ -108,6 +216,60 @@ export default function WeatherInfo() {
     fetchWeatherData(lon, lat);
     fetchCityData(lon, lat);
   }, [fetchParams]);
+
+  useEffect(() => {
+    if (!currWeather) return;
+
+    const hours = currWeather.days[0].hours;
+
+    if (!hours) return;
+
+    const tempData = hours.map((hour) => ({
+      x: hour.datetime,
+      y: hour.temp,
+    }));
+    setTempData(tempData);
+
+    const uvData = hours.map((hour) => ({
+      x: hour.datetime,
+      y: hour.uvindex,
+    }));
+    setUvData(uvData);
+
+    const humidData = hours.map((hour) => ({
+      x: hour.datetime,
+      y: hour.humidity,
+    }));
+    setHumidData(humidData);
+  }, [currWeather]);
+
+  useEffect(() => {
+    let chartData = null;
+    switch (activeChart) {
+      case "temp":
+        chartData = tempData;
+        break;
+      case "uv":
+        chartData = uvData;
+        break;
+      case "humid":
+        chartData = humidData;
+        break;
+    }
+    if (chartData && chartData?.length > 0) {
+      lineChart(chartData);
+    }
+  }, [activeChart, tempData, uvData, humidData]);
+
+  useEffect(() => {
+    if (!currWeather) return;
+
+    const webTitleContainer = document.querySelector(".web-title");
+
+    if (!webTitleContainer || !currWeather?.currentConditions) return;
+
+    webTitleContainer.textContent = currWeather.currentConditions.conditions;
+  }, [currWeather, cityInfo]);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -215,8 +377,9 @@ export default function WeatherInfo() {
     // scroll horizontally
     scrollerRef.current.scrollLeft += e.deltaY;
   };
+
   return (
-    <div className="h-screen w-screen bg-gradient-to-br from-neutral-800 via-neutral-700 to-neutral-800 flex flex-col lg:px-20">
+    <div className="h-screen w-screen bg-gradient-to-br from-neutral-800 via-neutral-700 to-neutral-800 flex flex-col lg:px-20 ">
       {/* Search bar */}
       <div className="flex items-center px-4 py-3 h-16 lg:px-20">
         <input
@@ -393,13 +556,43 @@ export default function WeatherInfo() {
               </div>
             </div>
           )}
-          <div className="bg-gradient-to-br from-neutral-600/60 to-neutral-700/40 backdrop-blur-md  flex-1 rounded-xl p-6 shadow-2xl hover:shadow-neutral-500/30 transition-all duration-300">
-            <div className="text-white/90 text-lg font-semibold mb-2">
-              Temperature
+          <div className="bg-gradient-to-br from-neutral-600/60 to-neutral-700/40 backdrop-blur-md   rounded-xl shadow-2xl hover:shadow-neutral-500/30 transition-all duration-300 h-[400px] flex flex-col">
+            <div className="flex justify-between px-5 pt-2 mb-2 flex-wrap">
+              <div className="text-2xl font-semibold text-white ">Overview</div>
+              <div className="flex gap-4 bg-neutral-700 shadow rounded-full px-4 text-white font-semibold">
+                <button
+                  className={`${
+                    activeChart === "temp"
+                      ? "bg-neutral-400 rounded-full px-4"
+                      : "px-4"
+                  }`}
+                  onClick={() => setActiveChart("temp")}
+                >
+                  Temp
+                </button>
+                <button
+                  className={`${
+                    activeChart === "uv"
+                      ? "bg-neutral-400 rounded-full px-4"
+                      : "px-4"
+                  }`}
+                  onClick={() => setActiveChart("uv")}
+                >
+                  UV
+                </button>
+                <button
+                  className={`${
+                    activeChart === "humid"
+                      ? "bg-neutral-400 rounded-full px-4"
+                      : "px-4"
+                  }`}
+                  onClick={() => setActiveChart("humid")}
+                >
+                  Humidity
+                </button>
+              </div>
             </div>
-            <div className="text-white/70">
-              Temperature info will appear here
-            </div>
+            <div className=" h-[100%] rounded-2xl" id="chart-container"></div>
           </div>
         </div>
 

@@ -12,6 +12,7 @@
   "dependencies": {
     "@maptiler/sdk": "^3.3.0",
     "@tailwindcss/vite": "^4.1.8",
+    "d3": "^7.9.0",
     "lucide-react": "^0.511.0",
     "ol": "^10.5.0",
     "react": "^19.1.0",
@@ -21,6 +22,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
+    "@types/d3": "^7.4.3",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",
