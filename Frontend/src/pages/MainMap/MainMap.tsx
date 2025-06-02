@@ -18,7 +18,11 @@ type lonLat = {
   lat: number;
 };
 
-export default function MainMap() {
+interface MainMapProps {
+  satellite: boolean;
+}
+
+export default function MainMap({ satellite }: MainMapProps) {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const map = useRef<maptilersdk.Map | null>(null);
   const tokyo = { lng: 139.753, lat: 35.6844 };
@@ -31,7 +35,7 @@ export default function MainMap() {
     lng: tokyo.lng,
     lat: tokyo.lat,
   });
-
+  console.log(satellite);
   // Initializing map
   useEffect(() => {
     if (!map.current || !mapContainer.current) return;
@@ -60,6 +64,14 @@ export default function MainMap() {
       markerRef.current = marker;
     }
   }, [lngLat]);
+
+  useEffect(() => {
+    if (!map.current) return;
+
+    map.current.setStyle(
+      satellite ? maptilersdk.MapStyle.SATELLITE : maptilersdk.MapStyle.STREETS
+    );
+  }, [satellite]);
 
   // Initialize map by the click of a point
   useEffect(() => {
