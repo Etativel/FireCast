@@ -16,14 +16,12 @@ import marker from "../../assets/maps-and-flags.png";
 import { useLocation } from "react-router-dom";
 import icons from "../../utility/attachIcon";
 import type { WeatherIconKey } from "../../utility/attachIcon";
+import type { NumberValue } from "d3";
 import type {
   CurrWeather,
   CityInfo,
   LngLat,
 } from "../../types/WeatherInfo/WeatherInfo";
-
-const API_KEY_2 = "6ed1c13520bbdb255f5c2fb196794ea8";
-const API_KEY = "YPC3DM45JTFTRKZF8EXVGKAZY";
 
 type ChartDataPoint = { x: string; y: number };
 
@@ -56,14 +54,28 @@ function lineChart(data: ChartDataPoint[]) {
 
   const dataset = data.map((d) => ({ ...d, x: new Date(`1970-01-01T${d.x}`) }));
 
-  x.domain(d3.extent(dataset, (d) => d.x));
-  y.domain([
-    Math.floor(d3.min(dataset, (d) => d.y)) - 2,
-    Math.ceil(d3.max(dataset, (d) => d.y)) + 2,
-  ]);
+  const xExtent = d3.extent(dataset, (d) => d.x);
+  if (xExtent[0] && xExtent[1]) {
+    x.domain(xExtent as [Date, Date]);
+  } else {
+    x.domain([new Date(), new Date()]);
+  }
 
-  const customTickFormat = (d) => {
-    const hours = d.getHours();
+  const yMin = d3.min(dataset, (d) => d.y);
+  const yMax = d3.max(dataset, (d) => d.y);
+
+  if (yMin !== undefined && yMax !== undefined) {
+    y.domain([Math.floor(yMin) - 2, Math.ceil(yMax) + 2]);
+  } else {
+    y.domain([0, 10]);
+  }
+
+  const customTickFormat = (domainValue: Date | NumberValue): string => {
+    const date =
+      domainValue instanceof Date
+        ? domainValue
+        : new Date(domainValue.valueOf());
+    const hours = date.getHours();
     const ampm = hours >= 12 ? "PM" : "AM";
     const displayHour = hours % 12 || 12;
     return `${displayHour} ${ampm}`;
@@ -84,9 +96,9 @@ function lineChart(data: ChartDataPoint[]) {
   xAxis.selectAll("text").style("opacity", 0.7);
   yAxis.selectAll("text").style("opacity", 0.7);
 
-  xAxis.selectAll("text").style("opacity", 0.7).style("fill", "#ffffff"); // white
+  xAxis.selectAll("text").style("opacity", 0.7).style("fill", "#ffffff");
 
-  yAxis.selectAll("text").style("opacity", 0.7).style("fill", "#ffffff"); // white
+  yAxis.selectAll("text").style("opacity", 0.7).style("fill", "#ffffff");
 
   yAxis.selectAll(".tick").each(function () {
     const tickValue = d3.select(this).select("text").text();
@@ -116,15 +128,18 @@ function lineChart(data: ChartDataPoint[]) {
     .attr("stroke-width", 2)
     .attr("d", line);
 
-  const totalLength = path.node().getTotalLength();
+  const pathNode = path.node();
 
-  path
-    .attr("stroke-dasharray", totalLength + " " + totalLength)
-    .attr("stroke-dashoffset", totalLength)
-    .transition()
-    .duration(500)
-    .ease(d3.easeLinear)
-    .attr("stroke-dashoffset", 0);
+  if (pathNode) {
+    const totalLength = pathNode.getTotalLength();
+    path
+      .attr("stroke-dasharray", totalLength + " " + totalLength)
+      .attr("stroke-dashoffset", totalLength)
+      .transition()
+      .duration(500)
+      .ease(d3.easeLinear)
+      .attr("stroke-dashoffset", 0);
+  }
 }
 
 export default function WeatherInfo() {
@@ -152,8 +167,6 @@ export default function WeatherInfo() {
   const [tempData, setTempData] = useState<ChartDataPoint[] | null>(null);
   const [humidData, setHumidData] = useState<ChartDataPoint[] | null>(null);
   const [activeChart, setActiveChart] = useState("temp");
-  console.log(currWeather);
-  const [forecastDays, setForecastDays] = useState("4-days");
 
   function addMarker(coordinates: [number, number]) {
     if (!markerLayer.current) return;
@@ -180,7 +193,7 @@ export default function WeatherInfo() {
     async function fetchWeatherData(lon: number, lat: number) {
       try {
         const res = await fetch(
-          `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${lat},${lon}?key=${API_KEY}&unitGroup=metric&include=current,hours`
+          `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${lat},${lon}?key=YPC3DM45JTFTRKZF8EXVGKAZY&unitGroup=metric&include=current,hours`
         );
 
         if (res.ok) {
@@ -197,7 +210,7 @@ export default function WeatherInfo() {
     async function fetchCityData(lon: number, lat: number) {
       try {
         const res = await fetch(
-          `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY_2}`
+          `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=6ed1c13520bbdb255f5c2fb196794ea8`
         );
         if (res.ok) {
           const data = await res.json();
@@ -209,41 +222,24 @@ export default function WeatherInfo() {
         }
       } catch (err) {
         console.error(err);
-      } finally {
-        setIsFetching(false);
       }
     }
 
+    async function fetchAllData(lon: number, lat: number) {
+      try {
+        await Promise.all([
+          fetchWeatherData(lon, lat),
+          fetchCityData(lon, lat),
+        ]);
+      } catch (err) {
+        console.error("Fetch error", err);
+      }
+    }
     setIsFetching(true);
-    fetchWeatherData(lon, lat);
-    fetchCityData(lon, lat);
+    fetchAllData(lon, lat).finally(() => setIsFetching(false));
   }, [fetchParams]);
 
-  useEffect(() => {
-    if (!currWeather) return;
-
-    const hours = currWeather.days[0].hours;
-
-    if (!hours) return;
-
-    const tempData = hours.map((hour) => ({
-      x: hour.datetime,
-      y: hour.temp,
-    }));
-    setTempData(tempData);
-
-    const uvData = hours.map((hour) => ({
-      x: hour.datetime,
-      y: hour.uvindex,
-    }));
-    setUvData(uvData);
-
-    const humidData = hours.map((hour) => ({
-      x: hour.datetime,
-      y: hour.humidity,
-    }));
-    setHumidData(humidData);
-  }, [currWeather]);
+  // useEffect(() => {}, [currWeather]);
 
   useEffect(() => {
     let chartData = null;
@@ -271,6 +267,30 @@ export default function WeatherInfo() {
     if (!webTitleContainer || !currWeather?.currentConditions) return;
 
     webTitleContainer.textContent = currWeather.currentConditions.conditions;
+
+    if (!currWeather) return;
+
+    const hours = currWeather.days[0].hours;
+
+    if (!hours) return;
+
+    const tempData = hours.map((hour) => ({
+      x: hour.datetime,
+      y: hour.temp,
+    }));
+    setTempData(tempData);
+
+    const uvData = hours.map((hour) => ({
+      x: hour.datetime,
+      y: hour.uvindex,
+    }));
+    setUvData(uvData);
+
+    const humidData = hours.map((hour) => ({
+      x: hour.datetime,
+      y: hour.humidity,
+    }));
+    setHumidData(humidData);
   }, [currWeather, cityInfo]);
 
   useEffect(() => {
@@ -374,8 +394,7 @@ export default function WeatherInfo() {
   // add wheel scroll support
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     if (!scrollerRef.current) return;
-    // prevent default vertical scroll
-    e.preventDefault();
+
     // scroll horizontally
     scrollerRef.current.scrollLeft += e.deltaY;
   };
@@ -611,14 +630,12 @@ export default function WeatherInfo() {
 
           <div className="bg-gradient-to-br from-neutral-600/60 to-neutral-700/40 backdrop-blur-md rounded-xl shadow-2xl hover:shadow-neutral-500/30 transition-all duration-300 h-[300px]">
             <div className="flex flex-col h-full">
-              {/* Header */}
               <div className="flex justify-between px-4 py-2 flex-wrap mb-2">
                 <span className="text-2xl font-semibold text-white">
                   Forecast
                 </span>
               </div>
 
-              {/* Scrollable content */}
               {currWeather ? (
                 <div className="flex-1 overflow-y-auto flex flex-col gap-2 pb-2 hide-scrollbar">
                   {currWeather.days.map((day, index) => {
@@ -627,10 +644,10 @@ export default function WeatherInfo() {
                       const dayNum = date.getDate();
                       const month = date.toLocaleString("en-US", {
                         month: "short",
-                      }); // "Jun"
+                      });
                       const weekday = date.toLocaleString("en-US", {
                         weekday: "short",
-                      }); // "Tue"
+                      });
                       return `${dayNum} ${month}, ${weekday}`;
                     };
                     return (
@@ -645,10 +662,12 @@ export default function WeatherInfo() {
                             alt=""
                           />
                           <span className="pr-2 pl-2 text-md font-semibold text-white">
-                            {day.temp}
+                            {day.temp}°
                           </span>
                           <span className="text-md text-white font-semibold">
-                            {day.conditions.split(",")[0]}
+                            {day.conditions.split(",")[0] === "Partially cloudy"
+                              ? "Cloudy"
+                              : day.conditions.split(",")[0]}
                           </span>
                         </div>
                         <div className="flex items-center gap-4 text-white">
