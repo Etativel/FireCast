@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import Popup from "../../components/Map/Popup";
 import { useNavigate } from "react-router-dom";
 import "./map.css";
+import { API_URL } from "../../utility";
 
 type ClickEvent = {
   lngLat: {
@@ -20,9 +21,15 @@ type lonLat = {
 
 interface MainMapProps {
   satellite: boolean;
+  searchQuery: string;
+  searchTrigger: number;
 }
 
-export default function MainMap({ satellite }: MainMapProps) {
+export default function MainMap({
+  satellite,
+  searchQuery,
+  searchTrigger,
+}: MainMapProps) {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const map = useRef<maptilersdk.Map | null>(null);
   const tokyo = { lng: 139.753, lat: 35.6844 };
@@ -35,7 +42,7 @@ export default function MainMap({ satellite }: MainMapProps) {
     lng: tokyo.lng,
     lat: tokyo.lat,
   });
-  console.log(satellite);
+
   // Initializing map
   useEffect(() => {
     if (!map.current || !mapContainer.current) return;
@@ -134,6 +141,66 @@ export default function MainMap({ satellite }: MainMapProps) {
       map.current?.off("click", handleClick);
     };
   }, [navigate]);
+
+  useEffect(() => {
+    if (!map.current) return;
+    const mapInstance = map.current;
+
+    (async function fetchWeather() {
+      try {
+        const res = await fetch(`${API_URL}/weather/by-city`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            city: searchQuery,
+          }),
+        });
+        if (!res.ok) {
+          console.log("Failed to retrieve city data, ", res.statusText);
+          return;
+        }
+        const data = await res.json();
+        const newLat = data.latitude;
+        const newLon = data.longitude;
+        setLngLat({
+          lat: newLat,
+          lng: newLon,
+        });
+
+        // Re center popup
+        const target = mapInstance.project([newLon, newLat]);
+        target.y -= 100;
+        const offsetCenter = mapInstance.unproject(target);
+        mapInstance.setCenter(offsetCenter);
+
+        if (popupRootRef.current && popupRef.current) {
+          popupRootRef.current.unmount();
+          popupRef.current.remove();
+        }
+
+        // Create new popup element
+        const popupEl = document.createElement("div");
+        const popupRoot = createRoot(popupEl);
+        popupRoot.render(
+          <Popup lon={newLon} lat={newLat} navigate={navigate} />
+        );
+
+        popupRef.current = popupEl;
+        popupRootRef.current = popupRoot;
+
+        new maptilersdk.Marker({ element: popupEl })
+          .setLngLat([newLon, newLat])
+          .addTo(mapInstance);
+        console.log("This si data from search", data);
+      } catch (err) {
+        console.log(err);
+      }
+    })();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTrigger]);
 
   return (
     <div className="w-full h-full border-transparent">
