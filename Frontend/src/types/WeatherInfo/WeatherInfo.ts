@@ -131,4 +131,19 @@ interface CityInfo {
   state: string;
 }
 
-export type { CityInfo, CurrWeather, LngLat, CurrentConditions, Hour, Day };
+interface CityInfoShort {
+  name: string;
+  lat: number;
+  lon: number;
+  country: string;
+}
+
+export type {
+  CityInfo,
+  CurrWeather,
+  LngLat,
+  CurrentConditions,
+  Hour,
+  Day,
+  CityInfoShort,
+};

@@ -24,7 +24,7 @@ export default function Navbar({
             FireCast
           </p>
         </div>
-        <div className="flex bg-neutral-200/50 px-2 rounded-full py-1 items-center  shadow-xl">
+        <div className="flex bg-neutral-600/50 px-2 rounded-full py-[3px] items-center  shadow-xl">
           <Search className="text-neutral-200 size-4" />
           <form onSubmit={(e) => submitQuery(e)}>
             <input

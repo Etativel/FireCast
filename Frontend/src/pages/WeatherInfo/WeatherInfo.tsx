@@ -17,7 +17,7 @@ import { icons, lineChart, API_URL } from "../../utility";
 import type { WeatherIconKey } from "../../utility/attachIcon";
 import type {
   CurrWeather,
-  CityInfo,
+  CityInfoShort,
   LngLat,
 } from "../../types/WeatherInfo/WeatherInfo";
 
@@ -34,7 +34,7 @@ export default function WeatherInfo() {
   const [markerCoords, setMarkerCoords] = useState<[number, number] | null>(
     fromLonLat([weatherCity.lon, weatherCity.lat]) as [number, number]
   );
-  const [cityInfo, setCityInfo] = useState<CityInfo | null>(null);
+  const [cityInfo, setCityInfo] = useState<CityInfoShort | null>(null);
   const [fetchParams, setFetchParams] = useState<LngLat>({
     lon: weatherCity.lon,
     lat: weatherCity.lat,
@@ -48,6 +48,12 @@ export default function WeatherInfo() {
   const [tempData, setTempData] = useState<ChartDataPoint[] | null>(null);
   const [humidData, setHumidData] = useState<ChartDataPoint[] | null>(null);
   const [activeChart, setActiveChart] = useState("temp");
+
+  // Search bar
+  const [searchQuery, setSearchQuery] = useState("");
+  const [prevQuery, setPrevQuery] = useState(searchQuery);
+
+  console.log(cityInfo);
 
   function addMarker(coordinates: [number, number]) {
     if (!markerLayer.current) return;
@@ -68,58 +74,99 @@ export default function WeatherInfo() {
     markerLayer.current.getSource()?.addFeature(iconFeature);
   }
 
+  async function fetchWeatherData(lon: number, lat: number) {
+    try {
+      const res = await fetch(`${API_URL}/weather/weather-data`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          lon,
+          lat,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setCurrWeather(data);
+      } else {
+        console.warn("Weather API failed:", res.statusText);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function fetchCityData(lon: number, lat: number) {
+    try {
+      const res = await fetch(`${API_URL}/weather/city-data`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          lon,
+          lat,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.length > 0) {
+          setCityInfo({
+            country: data[0].country,
+            lat: data[0].lat,
+            lon: data[0].lon,
+            name: data[0].name,
+          });
+        }
+      } else {
+        console.warn("Reverse geocode failed:", res.statusText);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function fetchByCity(cityName: string) {
+    try {
+      const res = await fetch(`${API_URL}/weather/by-city`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          city: cityName,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const parts = data.resolvedAddress.split(",");
+        const country = parts[parts.length - 1].trim();
+        const webMercatorCoords = fromLonLat([
+          data.longitude,
+          data.latitude,
+        ]) as [number, number];
+
+        setCurrWeather(data);
+        setCityInfo({
+          country: country,
+          lat: data.latitude,
+          lon: data.longitude,
+          name: data.address.charAt(0).toUpperCase() + data.address.slice(1),
+        });
+        setMarkerCoords(webMercatorCoords);
+      } else {
+        console.warn("Weather API failed:", res.statusText);
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
   useEffect(() => {
     const { lon, lat } = fetchParams;
-
-    async function fetchWeatherData(lon: number, lat: number) {
-      try {
-        const res = await fetch(`${API_URL}/weather/weather-data`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            lon,
-            lat,
-          }),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setCurrWeather(data);
-        } else {
-          console.warn("Weather API failed:", res.statusText);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    async function fetchCityData(lon: number, lat: number) {
-      try {
-        const res = await fetch(`${API_URL}/weather/city-data`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            lon,
-            lat,
-          }),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data.length > 0) {
-            setCityInfo(data[0]);
-          }
-        } else {
-          console.warn("Reverse geocode failed:", res.statusText);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }
 
     async function fetchAllData(lon: number, lat: number) {
       try {
@@ -134,8 +181,6 @@ export default function WeatherInfo() {
     setIsFetching(true);
     fetchAllData(lon, lat).finally(() => setIsFetching(false));
   }, [fetchParams]);
-
-  // useEffect(() => {}, [currWeather]);
 
   useEffect(() => {
     let chartData = null;
@@ -233,6 +278,7 @@ export default function WeatherInfo() {
   useEffect(() => {
     if (markerCoords && map.current && markerLayer.current) {
       addMarker(markerCoords);
+      map.current.getView().setCenter(markerCoords);
     }
   }, [markerCoords]);
 
@@ -295,15 +341,29 @@ export default function WeatherInfo() {
     scrollerRef.current.scrollLeft += e.deltaY;
   };
 
+  async function submitQuery(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!searchQuery.trim() || prevQuery === searchQuery) return;
+    setPrevQuery(searchQuery);
+
+    setIsFetching(true);
+    await fetchByCity(searchQuery);
+    setIsFetching(false);
+  }
+
   return (
     <div className="h-screen w-screen bg-gradient-to-br from-neutral-800 via-neutral-700 to-neutral-800 flex flex-col lg:px-20 ">
       {/* Search bar */}
       <div className="flex items-center px-4 py-3 h-16 lg:px-20">
-        <input
-          type="text"
-          placeholder="Search city..."
-          className="flex-grow px-4 py-2 rounded-lg bg-neutral-800/50 backdrop-blur-sm border border-neutral-600/30 text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-500/50 focus:border-neutral-500/50 max-w-sm transition-all duration-300"
-        />
+        <form onSubmit={(e) => submitQuery(e)}>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search city..."
+            className="flex-grow px-4 py-2 rounded-lg bg-neutral-800/50 backdrop-blur-sm border border-neutral-600/30 text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-500/50 focus:border-neutral-500/50 max-w-sm transition-all duration-300"
+          />
+        </form>
       </div>
 
       {/* Main content */}
