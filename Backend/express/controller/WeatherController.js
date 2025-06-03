@@ -34,7 +34,9 @@ async function getWeatherDataByCity(req, res) {
     );
 
     if (!response.ok) {
-      return res.status(response.status);
+      return res
+        .status(response.status)
+        .json({ error: "Failed to fetch weather data" });
     }
 
     const data = await response.json();
