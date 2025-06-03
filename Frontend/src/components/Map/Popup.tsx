@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
 import type { MouseEvent } from "react";
 import { Wind, Droplets, Gauge, Eye } from "lucide-react";
-import icons from "../../utility/attachIcon";
+import { icons, API_URL } from "../../utility";
 import type { Weather, PopupProps, weatherDataType } from "../../types/Map/Map";
-
-const API_KEY_2 = "6ed1c13520bbdb255f5c2fb196794ea8";
-const API_KEY = "YPC3DM45JTFTRKZF8EXVGKAZY";
 
 export default function Popup({ lon, lat, navigate }: PopupProps) {
   const [isVisible, setIsVisible] = useState(false);
@@ -18,9 +15,17 @@ export default function Popup({ lon, lat, navigate }: PopupProps) {
       if (!lon || !lat) return;
 
       try {
-        const response = await fetch(
-          `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${lon},${lat}?key=${API_KEY}&unitGroup=metric&include=current`
-        );
+        const response = await fetch(`${API_URL}/weather/weather-data`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            lon,
+            lat,
+          }),
+        });
+
         if (!response.ok) {
           console.log(response.statusText);
         }
@@ -33,9 +38,17 @@ export default function Popup({ lon, lat, navigate }: PopupProps) {
     }
 
     async function fetchCityData(lon: number, lat: number) {
-      const response = await fetch(
-        `http://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=${1}&appid=${API_KEY_2}`
-      );
+      const response = await fetch(`${API_URL}/weather/city-data`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          lon,
+          lat,
+        }),
+      });
+
       if (!response.ok) {
         console.log("Failed to get name", response.statusText);
         setIsFetching(false);
@@ -49,7 +62,7 @@ export default function Popup({ lon, lat, navigate }: PopupProps) {
       setWeatherData(null);
       setIsFetching(false);
     }
-    fetchWeatherData(lat, lon);
+    fetchWeatherData(lon, lat);
     fetchCityData(lon, lat);
   }, [lon, lat]);
 
