@@ -1,8 +1,8 @@
-Total lines of code: 1152
-.tsx code = 971
-.html code = 13
+Total lines of code: 1762
+.css code = 18
 .jsx code = 0
 .py code = 46
-.js code = 28
-.css code = 10
-.ts code = 84
+.ts code = 377
+.tsx code = 1141
+.html code = 18
+.js code = 162
