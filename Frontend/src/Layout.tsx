@@ -10,6 +10,7 @@ export default function Layout() {
   const [prevSearch, setPrevSearch] = useState(searchQuery);
   const [searchTrigger, setSearchTrigger] = useState(0);
   const [onScan, setOnScan] = useState(false);
+  const [isPredicting, setIsPredicting] = useState(false);
   const [isModelReady, setIsModelReady] = useState(false);
   function submitQuery(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -45,12 +46,14 @@ export default function Layout() {
           satellite={satellite}
           setOnScan={setOnScan}
           isModelReady={isModelReady}
+          isPredicting={isPredicting}
         />
         <MobileSidebar
           setSatellite={setSatellite}
           satellite={satellite}
           setOnScan={setOnScan}
           isModelReady={isModelReady}
+          isPredicting={isPredicting}
         />
         <div className="flex-1 lg:ml-10 md:ml-10">
           <MainMap
@@ -59,6 +62,7 @@ export default function Layout() {
             searchTrigger={searchTrigger}
             onScan={onScan}
             setOnScan={setOnScan}
+            setIsPredicting={setIsPredicting}
           />
         </div>
       </div>

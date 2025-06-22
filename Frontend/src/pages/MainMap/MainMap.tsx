@@ -25,6 +25,7 @@ interface MainMapProps {
   searchTrigger: number;
   onScan: boolean;
   setOnScan: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsPredicting: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export default function MainMap({
@@ -33,6 +34,7 @@ export default function MainMap({
   searchTrigger,
   onScan,
   setOnScan,
+  setIsPredicting,
 }: MainMapProps) {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const map = useRef<maptilersdk.Map | null>(null);
@@ -333,7 +335,11 @@ export default function MainMap({
 
           // Capture the selected region
           try {
-            const data = await captureSelectedRegion(currentMap, relativeRect);
+            const data = await captureSelectedRegion(
+              currentMap,
+              relativeRect,
+              setIsPredicting
+            );
 
             if (data) {
               navigate("/prediction", {
@@ -361,73 +367,6 @@ export default function MainMap({
       }
     };
 
-    // const onMouseUp = async (e: MouseEvent) => {
-    //   if (!selecting) return;
-
-    //   selecting = false;
-
-    //   const currentX = e.clientX;
-    //   const currentY = e.clientY;
-
-    //   const x = Math.min(currentX, startX);
-    //   const y = Math.min(currentY, startY);
-    //   const width = Math.abs(currentX - startX);
-    //   const height = Math.abs(currentY - startY);
-
-    //   // Only capture if selection is large enough
-    //   if (width > 10 && height > 10) {
-    //     // Get map container bounds to calculate relative position
-    //     const mapContainerElement = mapContainer.current;
-    //     if (mapContainerElement) {
-    //       const mapRect = mapContainerElement.getBoundingClientRect();
-
-    //       // Calculate coordinates relative to the map container
-    //       const relativeRect = {
-    //         x: Math.max(0, x - mapRect.left),
-    //         y: Math.max(0, y - mapRect.top),
-    //         width: Math.min(
-    //           width,
-    //           mapRect.width - Math.max(0, x - mapRect.left)
-    //         ),
-    //         height: Math.min(
-    //           height,
-    //           mapRect.height - Math.max(0, y - mapRect.top)
-    //         ),
-    //       };
-
-    //       console.log("Capturing selection:", relativeRect);
-
-    //       // Cleanup overlay first
-    //       cleanup();
-
-    //       // Capture the selected region
-    //       try {
-    //         const data = await captureSelectedRegion(currentMap, relativeRect);
-
-    //         if (data) {
-    //           navigate("/prediction", {
-    //             state: {
-    //               heatmapImage: data.heatmap_base64,
-    //               satelliteImage: data.satellite_image_base64,
-    //               noWildFireProb: data.no_wildfire_prob,
-    //               yesWildFireProb: data.wildfire_prob,
-    //             },
-    //           });
-    //           return;
-    //         }
-    //       } catch (error) {
-    //         console.error("Failed to capture screenshot:", error);
-    //       }
-    //     }
-    //   } else {
-    //     cleanup();
-    //   }
-    // };
-
-    // Add event listeners
-    // overlay.addEventListener("mousedown", onMouseDown);
-    // overlay.addEventListener("mousemove", onMouseMove);
-    // overlay.addEventListener("mouseup", onMouseUp);
     overlay.addEventListener("pointerdown", onPointerDown);
     overlay.addEventListener("pointermove", onPointerMove);
     overlay.addEventListener("pointerup", onPointerUp);
@@ -507,8 +446,12 @@ async function takeMapScreenshot(
   });
 }
 
-async function handleCapturedImage(dataUrl: string) {
+async function handleCapturedImage(
+  dataUrl: string,
+  setIsPredicting: React.Dispatch<React.SetStateAction<boolean>>
+) {
   try {
+    setIsPredicting(true);
     const response = await fetch(dataUrl);
     const blob = await response.blob();
     const formData = new FormData();
@@ -524,10 +467,11 @@ async function handleCapturedImage(dataUrl: string) {
 
     if (!apiResponse.ok) {
       console.error("API request failed:", apiResponse.statusText);
-
+      setIsPredicting(false);
       return;
     }
     const data = await apiResponse.json();
+    setIsPredicting(false);
     return data;
   } catch (error) {
     console.error("Error handling captured image:", error);
@@ -537,12 +481,13 @@ async function handleCapturedImage(dataUrl: string) {
 // capture selected region
 async function captureSelectedRegion(
   map: maptilersdk.Map,
-  rect: { x: number; y: number; width: number; height: number }
+  rect: { x: number; y: number; width: number; height: number },
+  setIsPredicting: React.Dispatch<React.SetStateAction<boolean>>
 ) {
   try {
     console.log("Capturing region:", rect);
     const dataUrl = await takeMapScreenshot(map, rect);
-    const data = await handleCapturedImage(dataUrl);
+    const data = await handleCapturedImage(dataUrl, setIsPredicting);
     if (data) {
       return data;
     }
