@@ -9,6 +9,7 @@ export default function Layout() {
   const [searchQuery, setSearchQuery] = useState("");
   const [prevSearch, setPrevSearch] = useState(searchQuery);
   const [searchTrigger, setSearchTrigger] = useState(0);
+  const [onScan, setOnScan] = useState(false);
 
   function submitQuery(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -26,13 +27,23 @@ export default function Layout() {
       />
 
       <div className="relative flex-1 overflow-hidden border-transparent flex">
-        <Sidebar setSatellite={setSatellite} satellite={satellite} />
-        <MobileSidebar setSatellite={setSatellite} satellite={satellite} />
+        <Sidebar
+          setSatellite={setSatellite}
+          satellite={satellite}
+          setOnScan={setOnScan}
+        />
+        <MobileSidebar
+          setSatellite={setSatellite}
+          satellite={satellite}
+          setOnScan={setOnScan}
+        />
         <div className="flex-1 lg:ml-10 md:ml-10">
           <MainMap
             satellite={satellite}
             searchQuery={searchQuery}
             searchTrigger={searchTrigger}
+            onScan={onScan}
+            setOnScan={setOnScan}
           />
         </div>
       </div>
