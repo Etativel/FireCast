@@ -51,7 +51,7 @@ export default function MainMap({
 
   // Initializing map
   useEffect(() => {
-    if (!map.current || !mapContainer.current) return;
+    if (map.current || !mapContainer.current) return;
 
     map.current = new maptilersdk.Map({
       container: mapContainer.current,
@@ -95,31 +95,6 @@ export default function MainMap({
   }, [onScan]);
 
   // Initialize map by the click of a point
-  useEffect(() => {
-    if (map.current) return;
-    if (!mapContainer.current) return;
-
-    console.log(maptilersdk.MapStyle);
-
-    map.current = new maptilersdk.Map({
-      container: mapContainer.current,
-      style: maptilersdk.MapStyle.SATELLITE,
-      center: [103.11509301423916, 41.089223120782464],
-      zoom: 10,
-      navigationControl: false,
-    });
-
-    const placeHolderEl = document.createElement("div");
-    createRoot(placeHolderEl).render(
-      <Popup lon={lngLat.lng} lat={lngLat.lat} navigate={navigate} />
-    );
-    // placeHolderEl.classList.add("w-10", "h-10", "bg-red-500");
-    if (lngLat) {
-      new maptilersdk.Marker({ element: placeHolderEl })
-        .setLngLat([lngLat.lng, lngLat.lat])
-        .addTo(map.current);
-    }
-  }, [tokyo.lng, tokyo.lat, lngLat, navigate]);
 
   // Set the lat lng on click
   useEffect(() => {
