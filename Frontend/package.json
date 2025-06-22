@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "serve -s dist -l 3000"
   },
   "dependencies": {
     "@maptiler/sdk": "^3.3.0",
@@ -19,6 +20,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.1",
+    "serve": "^14.2.4",
     "tailwindcss": "^4.1.8"
   },
   "devDependencies": {
