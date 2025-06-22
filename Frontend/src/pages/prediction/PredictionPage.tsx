@@ -43,7 +43,7 @@ const PredictionPage: React.FC = () => {
   }
 
   return (
-    <div className="bg-neutral-900  ">
+    <div className="bg-neutral-900 ">
       <div className="flex border-transparent">
         <div className="h-10 w-10 border-r-1  border-neutral-700 bg-neutral-800">
           <img src={webIcon} alt="" />
@@ -53,9 +53,7 @@ const PredictionPage: React.FC = () => {
             className="flex font-semibold items-center cursor-pointer"
             onClick={home}
           >
-            <p className="hidden text-xl font-bold text-neutral-200 lg:block md:block">
-              FireCast
-            </p>
+            <p className=" text-xl font-bold text-neutral-200 ">FireCast</p>
           </div>
         </div>
       </div>
