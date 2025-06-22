@@ -9,7 +9,7 @@ app = Flask(__name__, static_folder="static")
 CORS(app)
 
 # Load & wrap the CAM model
-base_model = load_model('../model/CAM_model_10epoch.h5')
+base_model = load_model('./CAM_model_10epoch.h5')
 cam_model = Model(
     inputs=base_model.input,
     outputs=[

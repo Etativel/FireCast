@@ -1,3 +1,3 @@
-const API_URL = "http://localhost:3000";
+const API_URL = "https://firecast-backend.up.railway.app";
 
 export default API_URL;
