@@ -539,10 +539,13 @@ async function handleCapturedImage(dataUrl: string) {
     const formData = new FormData();
     formData.append("file", blob, "map-screenshot.png");
 
-    const apiResponse = await fetch(`http://127.0.0.1:5000/predict_cam`, {
-      method: "POST",
-      body: formData,
-    });
+    const apiResponse = await fetch(
+      `https://firecast-model.up.railway.app/predict_cam`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
 
     if (!apiResponse.ok) {
       console.error("API request failed:", apiResponse.statusText);
