@@ -27,107 +27,6 @@ interface MainMapProps {
   setOnScan: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-// use maptiler builtin screenshot
-async function takeMapScreenshot(
-  map: maptilersdk.Map,
-  rect?: { x: number; y: number; width: number; height: number }
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    // wait for map to be idle before taking screenshot
-    map.once("idle", () => {
-      try {
-        const canvas = map.getCanvas();
-
-        if (rect) {
-          const croppedCanvas = document.createElement("canvas");
-          const ctx = croppedCanvas.getContext("2d");
-
-          if (!ctx) {
-            reject(new Error("Could not get canvas context"));
-            return;
-          }
-
-          croppedCanvas.width = rect.width;
-          croppedCanvas.height = rect.height;
-
-          ctx.drawImage(
-            canvas,
-            rect.x,
-            rect.y,
-            rect.width,
-            rect.height,
-            0,
-            0,
-            rect.width,
-            rect.height
-          );
-
-          resolve(croppedCanvas.toDataURL("image/png"));
-        } else {
-          // return full map screenshot
-          resolve(canvas.toDataURL("image/png"));
-        }
-      } catch (error) {
-        reject(error);
-      }
-    });
-    map.triggerRepaint();
-  });
-}
-
-async function handleCapturedImage(dataUrl: string) {
-  try {
-    const win = window.open();
-    if (win) {
-      win.document.write(`
-        <html>
-          <head><title>Map Screenshot</title></head>
-          <body style="margin:0;padding:20px;background:#f0f0f0;">
-            <img src="${dataUrl}" style="max-width:100%;height:auto;border:1px solid #ccc;"/>
-            <div style="margin-top:10px;">
-              <a href="${dataUrl}" download="map-screenshot.png" style="padding:10px 20px;background:#007cba;color:white;text-decoration:none;border-radius:4px;">Download Image</a>
-            </div>
-          </body>
-        </html>
-      `);
-    }
-
-    const response = await fetch(dataUrl);
-    const blob = await response.blob();
-    const formData = new FormData();
-    formData.append("file", blob, "map-screenshot.png");
-
-    const apiResponse = await fetch(`${API_URL}/icon-retrieve/ga`, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (apiResponse.ok) {
-      const { answer } = await apiResponse.json();
-      console.log("API Response:", answer);
-      return answer;
-    } else {
-      console.error("API request failed:", apiResponse.statusText);
-    }
-  } catch (error) {
-    console.error("Error handling captured image:", error);
-  }
-}
-
-// capture selected region
-async function captureSelectedRegion(
-  map: maptilersdk.Map,
-  rect: { x: number; y: number; width: number; height: number }
-) {
-  try {
-    console.log("Capturing region:", rect);
-    const dataUrl = await takeMapScreenshot(map, rect);
-    await handleCapturedImage(dataUrl);
-  } catch (error) {
-    console.error("Error capturing region:", error);
-  }
-}
-
 export default function MainMap({
   satellite,
   searchQuery,
@@ -186,6 +85,14 @@ export default function MainMap({
       satellite ? maptilersdk.MapStyle.SATELLITE : maptilersdk.MapStyle.STREETS
     );
   }, [satellite]);
+
+  useEffect(() => {
+    if (!map.current) return;
+
+    map.current.setStyle(
+      onScan ? maptilersdk.MapStyle.SATELLITE : maptilersdk.MapStyle.SATELLITE
+    );
+  }, [onScan]);
 
   // Initialize map by the click of a point
   useEffect(() => {
@@ -322,6 +229,7 @@ export default function MainMap({
       cursor: "crosshair",
       zIndex: "9999",
       backgroundColor: "rgba(0,0,0,0.3)",
+      touchAction: "none",
     });
 
     // Style the selection rectangle
@@ -341,13 +249,31 @@ export default function MainMap({
     let selecting = false;
     const currentMap = map.current;
 
-    const onMouseDown = (e: MouseEvent) => {
-      e.preventDefault();
+    // const onMouseDown = (e: MouseEvent) => {
+    //   e.preventDefault();
+    //   selecting = true;
+    //   startX = e.clientX;
+    //   startY = e.clientY;
+
+    //   // Reset rectangle
+    //   Object.assign(rectEl.style, {
+    //     left: startX + "px",
+    //     top: startY + "px",
+    //     width: "0px",
+    //     height: "0px",
+    //     display: "block",
+    //   });
+    // };
+
+    function onPointerDown(e: PointerEvent) {
+      // only start on primary button or touch
+      if (e.button !== 0 && e.pointerType === "mouse") return;
       selecting = true;
       startX = e.clientX;
       startY = e.clientY;
 
-      // Reset rectangle
+      overlay.setPointerCapture(e.pointerId);
+
       Object.assign(rectEl.style, {
         left: startX + "px",
         top: startY + "px",
@@ -355,31 +281,46 @@ export default function MainMap({
         height: "0px",
         display: "block",
       });
-    };
+    }
 
-    const onMouseMove = (e: MouseEvent) => {
+    // const onMouseMove = (e: MouseEvent) => {
+    //   if (!selecting) return;
+
+    //   const currentX = e.clientX;
+    //   const currentY = e.clientY;
+
+    //   const x = Math.min(currentX, startX);
+    //   const y = Math.min(currentY, startY);
+    //   const width = Math.abs(currentX - startX);
+    //   const height = Math.abs(currentY - startY);
+
+    //   Object.assign(rectEl.style, {
+    //     left: x + "px",
+    //     top: y + "px",
+    //     width: width + "px",
+    //     height: height + "px",
+    //   });
+    // };
+
+    function onPointerMove(e: PointerEvent) {
       if (!selecting) return;
-
-      const currentX = e.clientX;
-      const currentY = e.clientY;
-
-      const x = Math.min(currentX, startX);
-      const y = Math.min(currentY, startY);
-      const width = Math.abs(currentX - startX);
-      const height = Math.abs(currentY - startY);
-
+      const x = Math.min(e.clientX, startX);
+      const y = Math.min(e.clientY, startY);
+      const w = Math.abs(e.clientX - startX);
+      const h = Math.abs(e.clientY - startY);
       Object.assign(rectEl.style, {
         left: x + "px",
         top: y + "px",
-        width: width + "px",
-        height: height + "px",
+        width: w + "px",
+        height: h + "px",
       });
-    };
+    }
 
-    const onMouseUp = async (e: MouseEvent) => {
+    async function onPointerUp(e: PointerEvent) {
       if (!selecting) return;
-
       selecting = false;
+
+      overlay.releasePointerCapture(e.pointerId);
 
       const currentX = e.clientX;
       const currentY = e.clientY;
@@ -417,7 +358,19 @@ export default function MainMap({
 
           // Capture the selected region
           try {
-            await captureSelectedRegion(currentMap, relativeRect);
+            const data = await captureSelectedRegion(currentMap, relativeRect);
+
+            if (data) {
+              navigate("/prediction", {
+                state: {
+                  heatmapImage: data.heatmap_base64,
+                  satelliteImage: data.satellite_image_base64,
+                  noWildFireProb: data.no_wildfire_prob,
+                  yesWildFireProb: data.wildfire_prob,
+                },
+              });
+              return;
+            }
           } catch (error) {
             console.error("Failed to capture screenshot:", error);
           }
@@ -425,7 +378,7 @@ export default function MainMap({
       } else {
         cleanup();
       }
-    };
+    }
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -433,10 +386,76 @@ export default function MainMap({
       }
     };
 
+    // const onMouseUp = async (e: MouseEvent) => {
+    //   if (!selecting) return;
+
+    //   selecting = false;
+
+    //   const currentX = e.clientX;
+    //   const currentY = e.clientY;
+
+    //   const x = Math.min(currentX, startX);
+    //   const y = Math.min(currentY, startY);
+    //   const width = Math.abs(currentX - startX);
+    //   const height = Math.abs(currentY - startY);
+
+    //   // Only capture if selection is large enough
+    //   if (width > 10 && height > 10) {
+    //     // Get map container bounds to calculate relative position
+    //     const mapContainerElement = mapContainer.current;
+    //     if (mapContainerElement) {
+    //       const mapRect = mapContainerElement.getBoundingClientRect();
+
+    //       // Calculate coordinates relative to the map container
+    //       const relativeRect = {
+    //         x: Math.max(0, x - mapRect.left),
+    //         y: Math.max(0, y - mapRect.top),
+    //         width: Math.min(
+    //           width,
+    //           mapRect.width - Math.max(0, x - mapRect.left)
+    //         ),
+    //         height: Math.min(
+    //           height,
+    //           mapRect.height - Math.max(0, y - mapRect.top)
+    //         ),
+    //       };
+
+    //       console.log("Capturing selection:", relativeRect);
+
+    //       // Cleanup overlay first
+    //       cleanup();
+
+    //       // Capture the selected region
+    //       try {
+    //         const data = await captureSelectedRegion(currentMap, relativeRect);
+
+    //         if (data) {
+    //           navigate("/prediction", {
+    //             state: {
+    //               heatmapImage: data.heatmap_base64,
+    //               satelliteImage: data.satellite_image_base64,
+    //               noWildFireProb: data.no_wildfire_prob,
+    //               yesWildFireProb: data.wildfire_prob,
+    //             },
+    //           });
+    //           return;
+    //         }
+    //       } catch (error) {
+    //         console.error("Failed to capture screenshot:", error);
+    //       }
+    //     }
+    //   } else {
+    //     cleanup();
+    //   }
+    // };
+
     // Add event listeners
-    overlay.addEventListener("mousedown", onMouseDown);
-    overlay.addEventListener("mousemove", onMouseMove);
-    overlay.addEventListener("mouseup", onMouseUp);
+    // overlay.addEventListener("mousedown", onMouseDown);
+    // overlay.addEventListener("mousemove", onMouseMove);
+    // overlay.addEventListener("mouseup", onMouseUp);
+    overlay.addEventListener("pointerdown", onPointerDown);
+    overlay.addEventListener("pointermove", onPointerMove);
+    overlay.addEventListener("pointerup", onPointerUp);
     document.addEventListener("keydown", onKeyDown);
 
     function cleanup() {
@@ -450,6 +469,7 @@ export default function MainMap({
 
     // Cleanup function
     return cleanup;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onScan, setOnScan]);
 
   return (
@@ -457,4 +477,99 @@ export default function MainMap({
       <div ref={mapContainer} className="  absolute w-[100%] h-[100%]" />
     </div>
   );
+}
+
+// use maptiler builtin screenshot
+async function takeMapScreenshot(
+  map: maptilersdk.Map,
+  rect?: { x: number; y: number; width: number; height: number }
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    map.once("idle", () => {
+      try {
+        const canvas = map.getCanvas();
+        const dpr = window.devicePixelRatio || 1;
+
+        if (rect) {
+          const cropped = document.createElement("canvas");
+          const ctx = cropped.getContext("2d");
+          if (!ctx) throw new Error("Could not get context");
+
+          // Scale up the canvas so it has the same resolution as the map's backing store
+          cropped.width = rect.width * dpr;
+          cropped.height = rect.height * dpr;
+
+          // Draw the correct pixel region
+          ctx.drawImage(
+            canvas,
+            rect.x * dpr,
+            rect.y * dpr,
+            rect.width * dpr,
+            rect.height * dpr,
+            0,
+            0,
+            rect.width * dpr,
+            rect.height * dpr
+          );
+
+          //  down‑sample back to CSS size for the dataURL
+          const final = document.createElement("canvas");
+          final.width = rect.width;
+          final.height = rect.height;
+          final
+            .getContext("2d")!
+            .drawImage(cropped, 0, 0, rect.width, rect.height);
+
+          resolve(final.toDataURL("image/png"));
+        } else {
+          resolve(canvas.toDataURL("image/png"));
+        }
+      } catch (err) {
+        reject(err);
+      }
+    });
+    map.triggerRepaint();
+  });
+}
+
+async function handleCapturedImage(dataUrl: string) {
+  try {
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
+    const formData = new FormData();
+    formData.append("file", blob, "map-screenshot.png");
+
+    const apiResponse = await fetch(`http://127.0.0.1:5000/predict_cam`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!apiResponse.ok) {
+      console.error("API request failed:", apiResponse.statusText);
+
+      return;
+    }
+    const data = await apiResponse.json();
+    return data;
+  } catch (error) {
+    console.error("Error handling captured image:", error);
+  }
+}
+
+// capture selected region
+async function captureSelectedRegion(
+  map: maptilersdk.Map,
+  rect: { x: number; y: number; width: number; height: number }
+) {
+  try {
+    console.log("Capturing region:", rect);
+    const dataUrl = await takeMapScreenshot(map, rect);
+    const data = await handleCapturedImage(dataUrl);
+    if (data) {
+      return data;
+    }
+    return;
+  } catch (error) {
+    console.error("Error capturing region:", error);
+  }
 }
