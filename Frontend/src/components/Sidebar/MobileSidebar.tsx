@@ -3,15 +3,20 @@ import { Scan, Satellite, Map } from "lucide-react";
 interface SidebarProps {
   satellite: boolean;
   setSatellite: React.Dispatch<React.SetStateAction<boolean>>;
+  setOnScan: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export default function MobileSidebar({
   setSatellite,
   satellite,
+  setOnScan,
 }: SidebarProps) {
   return (
     <div className="mt-13 z-100 -2 gap absolute flex flex-col md:hidden right-0 mr-2">
-      <button className="p-2 bg-neutral-800 rounded-lg">
+      <button
+        className="p-2 bg-neutral-800 rounded-lg"
+        onClick={() => setOnScan((prev) => !prev)}
+      >
         <Scan className="text-neutral-400" />
       </button>
       <button
