@@ -1,11 +1,11 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from tensorflow.keras.models import Model, load_model
 from flask_cors import CORS
 import io, base64
 import numpy as np
 import cv2, scipy as sp
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="static")
 CORS(app)
 
 # Load & wrap the CAM model
@@ -42,6 +42,24 @@ def encode_png_b64(image: np.ndarray, with_alpha: bool=False) -> str:
     if not success:
         raise RuntimeError("PNG encoding failed")
     return base64.b64encode(buf.tobytes()).decode('utf-8')
+
+@app.route('/favicon.ico')
+def favicon():
+    try:
+        return send_from_directory(app.static_folder, 'favicon.ico')
+    except Exception as e:
+        logger.error(f"Favicon error: {e}")
+        return '', 204
+
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({
+        "message": "Welcome to the FireCast Image-Prediction API",
+        "endpoints": {
+            "POST /predict": "Upload an image file under form-field `file`"
+        }
+    })
+
 
 @app.route('/predict_cam', methods=['POST'])
 def predict_cam():
