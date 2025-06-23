@@ -1,7 +1,7 @@
 # FireCast
 
 <p align="center">
-  <img src="./Frontend/src/assets/webicon/firecast-icon.png" alt="FireCast" width="450" height="450" />
+  <img src="./Frontend/src/assets/webicon/firecast-icon.png" alt="FireCast" width="350" height="350" />
 </p>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
