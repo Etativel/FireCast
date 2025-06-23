@@ -20,7 +20,7 @@ cam_model = Model(
 # input size
 IM_SIZE = 224  
 
-def compute_cam(feats: np.ndarray, gap_w: np.ndarray) -> np.ndarray:
+def compute_cam(feats: np.ndarray, gap_w: np.ndarray, class_idx:int) -> np.ndarray:
   
     fmap = feats[0]
   
@@ -29,7 +29,7 @@ def compute_cam(feats: np.ndarray, gap_w: np.ndarray) -> np.ndarray:
         (IM_SIZE/fmap.shape[0], IM_SIZE/fmap.shape[1], 1),
         order=2
     )
-    cam = np.dot(up, gap_w[:,1])
+    cam = np.dot(up, gap_w[:,class_idx])
     cam = (cam - cam.min())/(cam.max() - cam.min())
     return cam
 
@@ -80,7 +80,8 @@ def predict_cam():
     # predict
     feats, preds = cam_model.predict(inp)
     gap_w = cam_model.layers[-1].get_weights()[0]
-    cam = compute_cam(feats, gap_w)     
+    wildfire_index = 1
+    cam = compute_cam(feats, gap_w, wildfire_index)     
     probs = preds[0]                    
 
     h0, w0 = orig_bgr.shape[:2]
