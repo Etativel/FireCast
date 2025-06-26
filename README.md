@@ -36,9 +36,8 @@ FireCast is a fire prediction and forecasting web app that uses satellite images
 ## Tech Stack
 
 - **Frontend**: React, Vite, Tailwind CSS, D3.js, MapTiler SDK, OpenLayers.
-- **Backend (Express)**: Node.js, Express 5, Prisma ORM
+- **Backend (Express)**: Node.js, Express 5
 - **Backend (Python)**: Flask, TensorFlow, NumPy, Matplotlib, SciPy, OpenCV, h5py, Gunicorn, Waitress
-- **Database**: PostgreSQL (via Prisma Client)
 - **Deployment & Hosting**: Railway
 
 ## Getting Started

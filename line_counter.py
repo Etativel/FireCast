@@ -4,7 +4,7 @@ def count_lines_in_project(directory, extensions=None, exclude_dirs=None):
     if extensions is None:
         extensions = {".py", ".js", ".jsx", ".ts", ".tsx", ".html", ".css"}
     if exclude_dirs is None:
-        exclude_dirs = {"node_modules", "modules"}
+        exclude_dirs = {"node_modules", "modules", ".venv", ".vscode"}
 
     total_lines = 0
     lines_per_extension = {ext: 0 for ext in extensions}
